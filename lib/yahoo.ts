@@ -146,7 +146,7 @@ export async function getQuote(symbol: string): Promise<QuoteData> {
     previousClose: result.regularMarketPreviousClose ?? 0,
     marketState: result.marketState || "UNKNOWN",
     currency: result.currency || "USD",
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: result.regularMarketTime?.toISOString() ?? new Date().toISOString(),
   };
 
   setCache(cacheKey, data, QUOTE_TTL);

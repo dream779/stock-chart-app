@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 
 interface IndexData {
   symbol: string;
@@ -15,20 +18,15 @@ interface IndexData {
   error?: boolean;
 }
 
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
 function formatUpdateTime(iso?: string): string {
   if (!iso) return "--";
-  try {
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return "--";
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    const h = String(d.getHours()).padStart(2, "0");
-    const min = String(d.getMinutes()).padStart(2, "0");
-    return `${y}-${m}-${day} ${h}:${min}`;
-  } catch {
-    return "--";
-  }
+  const d = dayjs(iso);
+  if (!d.isValid()) return "--";
+  // 美股最后更新日期按美东时间（America/New_York）显示，精确到天
+  return d.tz("America/New_York").format("YYYY-MM-DD");
 }
 
 export default function IndexCards() {
