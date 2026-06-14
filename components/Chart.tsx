@@ -44,8 +44,8 @@ export default function Chart({ data, title, stats, className }: ChartProps) {
         borderColor: '#e0e0e0',
         timeVisible: false,
       },
-      width: chartContainerRef.current.clientWidth,
-      height: chartContainerRef.current.clientHeight,
+      width: chartContainerRef.current.clientWidth || 600,
+      height: chartContainerRef.current.clientHeight || 300,
     });
 
     const series = chart.addAreaSeries({
@@ -71,6 +71,9 @@ export default function Chart({ data, title, stats, className }: ChartProps) {
 
     const resizeObserver = new ResizeObserver(updateSize);
     resizeObserver.observe(chartContainerRef.current);
+
+    // Ensure chart picks up the correct size after the initial layout is complete.
+    requestAnimationFrame(updateSize);
 
     return () => {
       window.removeEventListener('resize', updateSize);
@@ -111,7 +114,7 @@ export default function Chart({ data, title, stats, className }: ChartProps) {
           </div>
         )}
       </div>
-      <div ref={chartContainerRef} className="flex-1 min-h-0" />
+      <div ref={chartContainerRef} className="flex-1 min-h-[300px]" />
     </div>
   );
 }
