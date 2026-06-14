@@ -10,13 +10,14 @@ interface ChartProps {
     currentValue: number;
     changePercent: number;
   };
+  className?: string;
 }
 
 function formatNumber(num: number): string {
   return num.toLocaleString("en-US", { maximumFractionDigits: 2 });
 }
 
-export default function Chart({ data, title, stats }: ChartProps) {
+export default function Chart({ data, title, stats, className }: ChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
@@ -44,7 +45,7 @@ export default function Chart({ data, title, stats }: ChartProps) {
         timeVisible: false,
       },
       width: chartContainerRef.current.clientWidth,
-      height: 360,
+      height: chartContainerRef.current.clientHeight,
     });
 
     const series = chart.addAreaSeries({
@@ -57,16 +58,23 @@ export default function Chart({ data, title, stats }: ChartProps) {
     chartRef.current = chart;
     seriesRef.current = series;
 
-    const handleResize = () => {
-      if (chartContainerRef.current) {
-        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+    const updateSize = () => {
+      if (chartContainerRef.current && chartRef.current) {
+        chartRef.current.applyOptions({
+          width: chartContainerRef.current.clientWidth,
+          height: chartContainerRef.current.clientHeight,
+        });
       }
     };
 
-    window.addEventListener("resize", handleResize);
+    window.addEventListener("resize", updateSize);
+
+    const resizeObserver = new ResizeObserver(updateSize);
+    resizeObserver.observe(chartContainerRef.current);
 
     return () => {
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("resize", updateSize);
+      resizeObserver.disconnect();
       chart.remove();
     };
   }, []);
@@ -84,16 +92,16 @@ export default function Chart({ data, title, stats }: ChartProps) {
   const isPositive = stats ? stats.changePercent >= 0 : true;
 
   return (
-    <div className="bg-white rounded-lg shadow p-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
-        {title && <h3 className="text-lg font-semibold text-gray-900">{title}</h3>}
+    <div className={`flex flex-col h-full ${className || ""}`}>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+        {title && <h3 className="text-base font-semibold text-gray-900">{title}</h3>}
         {stats && (
-          <div className="flex items-baseline gap-3">
-            <span className="text-2xl font-bold text-gray-900">
+          <div className="flex items-baseline gap-2">
+            <span className="text-xl font-bold text-gray-900">
               {formatNumber(stats.currentValue)}
             </span>
             <span
-              className={`text-sm font-medium px-2 py-1 rounded ${
+              className={`text-sm font-medium px-2 py-0.5 rounded ${
                 isPositive
                   ? "bg-red-50 text-red-600"
                   : "bg-green-50 text-green-600"
@@ -105,7 +113,7 @@ export default function Chart({ data, title, stats }: ChartProps) {
           </div>
         )}
       </div>
-      <div ref={chartContainerRef} className="w-full" />
+      <div ref={chartContainerRef} className="flex-1 min-h-0" />
     </div>
   );
 }
