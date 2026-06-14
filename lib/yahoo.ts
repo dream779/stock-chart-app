@@ -6,6 +6,29 @@ const yahooFinance = new YahooFinance({
 
 const USE_MOCK = process.env.USE_MOCK_DATA === "true";
 
+// 内存缓存：行情 2 分钟，历史数据 1 小时
+interface CacheItem<T> {
+  data: T;
+  expiry: number;
+}
+const cache = new Map<string, CacheItem<unknown>>();
+const QUOTE_TTL = 2 * 60 * 1000;
+const HISTORICAL_TTL = 60 * 60 * 1000;
+
+function getCache<T>(key: string): T | null {
+  const item = cache.get(key);
+  if (!item) return null;
+  if (Date.now() > item.expiry) {
+    cache.delete(key);
+    return null;
+  }
+  return item.data as T;
+}
+
+function setCache<T>(key: string, data: T, ttlMs: number) {
+  cache.set(key, { data, expiry: Date.now() + ttlMs });
+}
+
 export interface QuoteData {
   symbol: string;
   name: string;
@@ -30,6 +53,8 @@ function formatDate(date: Date): string {
 function getPeriodStart(range: string): Date {
   const now = new Date();
   switch (range) {
+    case "1w":
+      return new Date(now.setDate(now.getDate() - 7));
     case "1m":
       return new Date(now.setMonth(now.getMonth() - 1));
     case "3m":
@@ -100,13 +125,19 @@ function mockQuote(symbol: string): QuoteData {
 }
 
 export async function getQuote(symbol: string): Promise<QuoteData> {
+  const cacheKey = `quote:${symbol.toUpperCase()}`;
+  const cached = getCache<QuoteData>(cacheKey);
+  if (cached) return cached;
+
   if (USE_MOCK) {
-    return mockQuote(symbol);
+    const data = mockQuote(symbol);
+    setCache(cacheKey, data, QUOTE_TTL);
+    return data;
   }
 
   const result = await yahooFinance.quote(symbol);
 
-  return {
+  const data: QuoteData = {
     symbol: result.symbol,
     name: result.longName || result.shortName || result.symbol,
     price: result.regularMarketPrice ?? 0,
@@ -117,14 +148,23 @@ export async function getQuote(symbol: string): Promise<QuoteData> {
     currency: result.currency || "USD",
     lastUpdated: new Date().toISOString(),
   };
+
+  setCache(cacheKey, data, QUOTE_TTL);
+  return data;
 }
 
 export async function getHistorical(
   symbol: string,
   range: string = "1y"
 ): Promise<HistoricalPoint[]> {
+  const cacheKey = `historical:${symbol.toUpperCase()}:${range}`;
+  const cached = getCache<HistoricalPoint[]>(cacheKey);
+  if (cached) return cached;
+
   if (USE_MOCK) {
-    return generateMockHistory(range, getMockBasePrice(symbol));
+    const data = generateMockHistory(range, getMockBasePrice(symbol));
+    setCache(cacheKey, data, HISTORICAL_TTL);
+    return data;
   }
 
   const period1 = getPeriodStart(range);
@@ -136,10 +176,13 @@ export async function getHistorical(
     interval: "1d",
   });
 
-  return result
+  const data = result
     .filter((item) => item.close !== null && item.close !== undefined)
     .map((item) => ({
       time: formatDate(item.date),
       value: item.close as number,
     }));
+
+  setCache(cacheKey, data, HISTORICAL_TTL);
+  return data;
 }
