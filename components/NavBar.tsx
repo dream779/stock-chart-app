@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 const TABS = [
   { label: '美股指数', href: '/' },
   { label: '基金', href: '/fund' },
+  { label: '持仓收益', href: '/holdings' },
 ];
 
 export default function NavBar() {

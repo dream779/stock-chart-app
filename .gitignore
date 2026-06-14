@@ -33,3 +33,9 @@ pnpm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# superpowers brainstorming artifacts
+.superpowers/
+
+docs/
+.superpowers/
