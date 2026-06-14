@@ -9,6 +9,12 @@ interface HistoricalPoint {
   value: number;
 }
 
+interface PeriodStats {
+  currentValue: number;
+  startValue: number;
+  changePercent: number;
+}
+
 const INDICES = [
   { symbol: "^GSPC", name: "标普 500" },
   { symbol: "^NDX", name: "纳斯达克 100" },
@@ -24,6 +30,7 @@ const RANGES = [
 export default function Home() {
   const [range, setRange] = useState("1y");
   const [histories, setHistories] = useState<Record<string, HistoricalPoint[]>>({});
+  const [stats, setStats] = useState<Record<string, PeriodStats>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -47,11 +54,27 @@ export default function Home() {
       );
 
       const map: Record<string, HistoricalPoint[]> = {};
+      const newStats: Record<string, PeriodStats> = {};
+
       results.forEach((item) => {
         map[item.symbol] = item.data;
+
+        const sorted = [...item.data].sort(
+          (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
+        );
+        if (sorted.length > 0) {
+          const startValue = sorted[0].value;
+          const currentValue = sorted[sorted.length - 1].value;
+          const changePercent =
+            sorted.length > 1
+              ? ((currentValue - startValue) / startValue) * 100
+              : 0;
+          newStats[item.symbol] = { currentValue, startValue, changePercent };
+        }
       });
 
       setHistories(map);
+      setStats(newStats);
     } catch (err) {
       setError(err instanceof Error ? err.message : "请求失败");
     } finally {
@@ -112,6 +135,7 @@ export default function Home() {
                   key={index.symbol}
                   data={data}
                   title={`${index.name} (${index.symbol}) - ${RANGES.find((r) => r.value === range)?.label}`}
+                  stats={stats[index.symbol]}
                 />
               );
             })}

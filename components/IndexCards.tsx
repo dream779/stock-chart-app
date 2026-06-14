@@ -11,7 +11,24 @@ interface IndexData {
   changePercent: number;
   marketState: string;
   currency: string;
+  lastUpdated: string;
   error?: boolean;
+}
+
+function formatUpdateTime(iso?: string): string {
+  if (!iso) return "--";
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "--";
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const h = String(d.getHours()).padStart(2, "0");
+    const min = String(d.getMinutes()).padStart(2, "0");
+    return `${y}-${m}-${day} ${h}:${min}`;
+  } catch {
+    return "--";
+  }
 }
 
 export default function IndexCards() {
@@ -83,9 +100,16 @@ export default function IndexCards() {
                 </span>
               )}
             </div>
-            {index.error && (
-              <p className="text-xs text-red-500 mt-2">数据获取失败</p>
-            )}
+            <div className="flex items-center justify-between mt-4">
+              {index.error ? (
+                <p className="text-xs text-red-500">数据获取失败</p>
+              ) : (
+                <div />
+              )}
+              <p className="text-xs text-gray-400">
+                更新于 {formatUpdateTime(index.lastUpdated)}
+              </p>
+            </div>
           </div>
         );
       })}

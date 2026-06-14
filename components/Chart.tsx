@@ -6,9 +6,17 @@ import { createChart, ColorType, IChartApi, ISeriesApi, AreaData } from "lightwe
 interface ChartProps {
   data: { time: string; value: number }[];
   title?: string;
+  stats?: {
+    currentValue: number;
+    changePercent: number;
+  };
 }
 
-export default function Chart({ data, title }: ChartProps) {
+function formatNumber(num: number): string {
+  return num.toLocaleString("en-US", { maximumFractionDigits: 2 });
+}
+
+export default function Chart({ data, title, stats }: ChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
@@ -73,9 +81,30 @@ export default function Chart({ data, title }: ChartProps) {
     }
   }, [data]);
 
+  const isPositive = stats ? stats.changePercent >= 0 : true;
+
   return (
     <div className="bg-white rounded-lg shadow p-4">
-      {title && <h3 className="text-lg font-semibold mb-3">{title}</h3>}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+        {title && <h3 className="text-lg font-semibold text-gray-900">{title}</h3>}
+        {stats && (
+          <div className="flex items-baseline gap-3">
+            <span className="text-2xl font-bold text-gray-900">
+              {formatNumber(stats.currentValue)}
+            </span>
+            <span
+              className={`text-sm font-medium px-2 py-1 rounded ${
+                isPositive
+                  ? "bg-red-50 text-red-600"
+                  : "bg-green-50 text-green-600"
+              }`}
+            >
+              {isPositive ? "+" : ""}
+              {stats.changePercent.toFixed(2)}%
+            </span>
+          </div>
+        )}
+      </div>
       <div ref={chartContainerRef} className="w-full" />
     </div>
   );
