@@ -29,6 +29,7 @@ const RANGES = [
 
 export default function Home() {
   const [range, setRange] = useState("1y");
+  const [selectedSymbol, setSelectedSymbol] = useState("^GSPC");
   const [histories, setHistories] = useState<Record<string, HistoricalPoint[]>>({});
   const [stats, setStats] = useState<Record<string, PeriodStats>>({});
   const [loading, setLoading] = useState(false);
@@ -87,15 +88,12 @@ export default function Home() {
   }, [range]);
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-2">美股基金行情看板</h1>
-      <p className="text-gray-500 mb-8">查看标普 500、纳斯达克 100 指数走势</p>
+    <main className="h-screen flex flex-col max-w-5xl mx-auto px-4 py-4">
+      <IndexCards selectedSymbol={selectedSymbol} onSelect={setSelectedSymbol} />
 
-      <IndexCards />
-
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <h2 className="text-lg font-semibold">历史走势</h2>
+      <div className="bg-white rounded-lg shadow p-4 flex flex-col flex-1 min-h-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+          <h2 className="text-base font-semibold">历史走势</h2>
           <div className="flex flex-wrap gap-2">
             {RANGES.map((r) => (
               <button
@@ -115,30 +113,27 @@ export default function Home() {
         </div>
 
         {loading && (
-          <div className="flex items-center justify-center h-40 text-gray-500">
+          <div className="flex items-center justify-center flex-1 text-gray-500">
             加载中...
           </div>
         )}
 
         {error && !loading && (
-          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-6">
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-3">
             {error}
           </div>
         )}
 
         {!loading && (
-          <div className="space-y-6">
-            {INDICES.map((index) => {
-              const data = histories[index.symbol] || [];
-              return (
-                <Chart
-                  key={index.symbol}
-                  data={data}
-                  title={`${index.name} (${index.symbol}) - ${RANGES.find((r) => r.value === range)?.label}`}
-                  stats={stats[index.symbol]}
-                />
-              );
-            })}
+          <div className="flex-1 min-h-0">
+            <Chart
+              data={histories[selectedSymbol] || []}
+              title={`${INDICES.find((i) => i.symbol === selectedSymbol)?.name} - ${
+                RANGES.find((r) => r.value === range)?.label
+              }`}
+              stats={stats[selectedSymbol]}
+              className="h-full"
+            />
           </div>
         )}
       </div>
