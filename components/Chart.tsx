@@ -92,7 +92,7 @@ export default function Chart({ data, title, stats, className }: ChartProps) {
   const isPositive = stats ? stats.changePercent >= 0 : true;
 
   return (
-    <div className={`flex flex-col h-full ${className || ""}`}>
+    <div className={`flex flex-col ${className || "h-full"}`}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
         {title && <h3 className="text-base font-semibold text-gray-900">{title}</h3>}
         {stats && (
