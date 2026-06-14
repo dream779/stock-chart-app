@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import NavBar from '@/components/NavBar';
 import IndexCards from '@/components/IndexCards';
 import Chart from '@/components/Chart';
 
@@ -86,52 +87,55 @@ export default function Home() {
   }, [range]);
 
   return (
-    <main className="h-screen flex flex-col max-w-5xl mx-auto px-4 py-4">
-      <IndexCards selectedSymbol={selectedSymbol} onSelect={setSelectedSymbol} />
+    <main className="min-h-screen bg-gray-50">
+      <NavBar />
+      <div className="h-[calc(100vh-64px)] flex flex-col max-w-5xl mx-auto px-4 py-4">
+        <IndexCards selectedSymbol={selectedSymbol} onSelect={setSelectedSymbol} />
 
-      <div className="bg-white rounded-lg shadow p-4 flex flex-col flex-1 min-h-0">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-          <h2 className="text-base font-semibold">历史走势</h2>
-          <div className="flex flex-wrap gap-2">
-            {RANGES.map((r) => (
-              <button
-                key={r.value}
-                onClick={() => setRange(r.value)}
-                disabled={loading}
-                className={`px-3 py-1 text-sm rounded-full transition ${
-                  range === r.value
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:bg-gray-50'
+        <div className="bg-white rounded-lg shadow p-4 flex flex-col flex-1 min-h-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+            <h2 className="text-base font-semibold">历史走势</h2>
+            <div className="flex flex-wrap gap-2">
+              {RANGES.map((r) => (
+                <button
+                  key={r.value}
+                  onClick={() => setRange(r.value)}
+                  disabled={loading}
+                  className={`px-3 py-1 text-sm rounded-full transition ${
+                    range === r.value
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:bg-gray-50'
+                  }`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {loading && (
+            <div className="flex items-center justify-center flex-1 text-gray-500">加载中...</div>
+          )}
+
+          {error && !loading && (
+            <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-3">
+              {error}
+            </div>
+          )}
+
+          {!loading && (
+            <div className="flex-1 min-h-0">
+              <Chart
+                data={histories[selectedSymbol] || []}
+                title={`${INDICES.find((i) => i.symbol === selectedSymbol)?.name} - ${
+                  RANGES.find((r) => r.value === range)?.label
                 }`}
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
+                stats={stats[selectedSymbol]}
+                className="h-full"
+              />
+            </div>
+          )}
         </div>
-
-        {loading && (
-          <div className="flex items-center justify-center flex-1 text-gray-500">加载中...</div>
-        )}
-
-        {error && !loading && (
-          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-3">
-            {error}
-          </div>
-        )}
-
-        {!loading && (
-          <div className="flex-1 min-h-0">
-            <Chart
-              data={histories[selectedSymbol] || []}
-              title={`${INDICES.find((i) => i.symbol === selectedSymbol)?.name} - ${
-                RANGES.find((r) => r.value === range)?.label
-              }`}
-              stats={stats[selectedSymbol]}
-              className="h-full"
-            />
-          </div>
-        )}
       </div>
     </main>
   );

@@ -1,12 +1,14 @@
-# 美股指数行情看板
+# 美股基金行情看板
 
-一个基于 Next.js + TypeScript + Lightweight Charts 的美股指数展示项目，查看标普 500、纳斯达克 100 指数的行情与历史走势。
+一个基于 Next.js + TypeScript + Lightweight Charts 的行情展示项目，查看标普 500、纳斯达克 100 指数及自选基金的行情与历史走势。
 
 ## 功能特性
 
 - 📈 实时展示 **标普 500**（`^GSPC`）和 **纳斯达克 100**（`^NDX`）指数数据
 - 📊 使用 **Lightweight Charts** 绘制走势图
 - ⏱️ 支持 **最近 1 周 / 1 个月 / 3 个月 / 1 年** 多个时间维度切换
+- 🏦 基金自选：输入基金代码加入自选列表，查看净值、估算净值与涨跌幅
+- 📉 基金详情：查看自选基金历史净值走势，支持周期切换
 - 🚀 已配置 **Vercel** 自动部署
 - 🧪 支持 Mock 数据模式，方便本地开发和界面预览
 - 💾 API 层内存缓存：行情数据缓存 2 分钟，历史数据缓存 1 小时，减少外部 API 调用
@@ -43,7 +45,7 @@ pnpm dev
 USE_MOCK_DATA=true pnpm dev
 ```
 
-开启后，所有行情数据将使用程序生成的模拟数据，方便你预览界面和调试功能。
+开启后，所有行情数据将使用程序生成的模拟数据，方便你预览界面和调试功能。基金 Mock 数据预置了 `017641`、`016452` 两只基金的基础净值与名称。
 
 ## 部署到 Vercel
 
@@ -79,17 +81,26 @@ vercel
 stock-chart-app/
 ├── app/
 │   ├── api/
+│   │   ├── fund/                  # 基金接口（带缓存）
+│   │   │   ├── [code]/            # 单只基金实时估值/净值
+│   │   │   └── historical/[code]/ # 基金历史净值
 │   │   ├── historical/[symbol]/   # 历史数据接口（带缓存）
 │   │   ├── quote/[symbol]/        # 实时行情接口（带缓存）
 │   │   └── indices/               # 标普500 + 纳斯达克100接口（带缓存）
+│   ├── fund/                      # 基金页面
+│   │   ├── page.tsx               # 基金自选列表页
+│   │   └── [code]/page.tsx        # 基金详情页
 │   ├── globals.css
 │   ├── layout.tsx
 │   └── page.tsx                   # 主页面
 ├── components/
 │   ├── Chart.tsx                  # Lightweight Charts 图表组件
+│   ├── FundTable.tsx              # 基金自选表格
 │   ├── IndexCards.tsx             # 指数卡片
+│   ├── NavBar.tsx                 # 顶部导航栏
 │   └── QuoteCard.tsx              # 行情卡片（已停用，保留备用）
 ├── lib/
+│   ├── eastmoney.ts               # 天天基金数据封装 + 缓存
 │   └── yahoo.ts                   # Yahoo Finance 数据封装 + 缓存
 ├── next.config.js
 ├── package.json
@@ -101,18 +112,20 @@ stock-chart-app/
 
 ## API 接口
 
-| 接口                                   | 说明                         | 示例                           |
-| -------------------------------------- | ---------------------------- | ------------------------------ |
-| `GET /api/indices`                     | 获取标普500、纳斯达克100数据 | `/api/indices`                 |
-| `GET /api/quote/:symbol`               | 获取单个标的实时行情         | `/api/quote/QQQ`               |
-| `GET /api/historical/:symbol?range=1y` | 获取历史走势数据             | `/api/historical/VOO?range=1y` |
+| 接口                                      | 说明                         | 示例                                   |
+| ----------------------------------------- | ---------------------------- | -------------------------------------- |
+| `GET /api/indices`                        | 获取标普500、纳斯达克100数据 | `/api/indices`                         |
+| `GET /api/quote/:symbol`                  | 获取单个标的实时行情         | `/api/quote/QQQ`                       |
+| `GET /api/historical/:symbol?range=1y`    | 获取历史走势数据             | `/api/historical/VOO?range=1y`         |
+| `GET /api/fund/:code`                     | 获取单只基金实时估值与净值   | `/api/fund/017641`                     |
+| `GET /api/fund/historical/:code?range=1y` | 获取基金历史净值走势         | `/api/fund/historical/017641?range=1m` |
 
 支持的时间范围：`1w`（1周）、`1m`（1个月）、`3m`（3个月）、`1y`（1年）
 
 ## 缓存说明
 
-- **行情数据**（`/api/indices`、`/api/quote/:symbol`）：内存缓存 2 分钟
-- **历史数据**（`/api/historical/:symbol`）：内存缓存 1 小时
+- **行情数据**（`/api/indices`、`/api/quote/:symbol`、`/api/fund/:code`）：内存缓存 2 分钟
+- **历史数据**（`/api/historical/:symbol`、`/api/fund/historical/:code`）：内存缓存 1 小时
 - 缓存只在 Serverless 实例存活期间有效，实例冷启动后会重新获取
 - Mock 数据模式下同样会缓存
 
@@ -126,4 +139,4 @@ stock-chart-app/
 
 ## 免责声明
 
-本项目仅用于学习和个人参考，展示的数据来源于 Yahoo Finance，可能存在延迟。数据仅供参考，不构成任何投资建议。
+本项目仅用于学习和个人参考，展示的数据来源于 Yahoo Finance 与天天基金（东方财富），可能存在延迟。数据仅供参考，不构成任何投资建议。

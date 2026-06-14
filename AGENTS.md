@@ -11,6 +11,8 @@
 - 展示标普 500、纳斯达克 100 的实时行情卡片
 - 支持在最近 1 周 / 1 个月 / 3 个月 / 1 年之间切换历史走势
 - 使用 Lightweight Charts 绘制面积图
+- 基金自选：输入基金代码加入自选列表，表格展示净值、估算净值与涨跌幅
+- 基金详情：点击自选基金查看历史净值走势，支持 1 周 / 1 个月 / 3 个月 / 1 年 周期切换
 - 内置内存缓存，减少外部 API 调用
 - 提供 Mock 数据模式，便于本地开发和界面预览
 
@@ -33,17 +35,27 @@
 stock-chart-app/
 ├── app/                          # Next.js App Router
 │   ├── api/                      # API Routes（服务端）
+│   │   ├── fund/                 # 基金接口
+│   │   │   ├── [code]/           # 单只基金实时估值/净值
+│   │   │   └── historical/[code]/ # 基金历史净值
 │   │   ├── historical/[symbol]/  # 获取历史数据
 │   │   ├── indices/              # 获取标普 500 + 纳斯达克 100 行情
 │   │   └── quote/[symbol]/       # 获取单个标的行情
+│   ├── fund/                     # 基金页面
+│   │   ├── page.tsx              # 基金自选列表页
+│   │   └── [code]/               # 基金详情页（动态路由）
+│   │       └── page.tsx
 │   ├── globals.css               # 全局样式 + Tailwind 指令
 │   ├── layout.tsx                # 根布局
 │   └── page.tsx                  # 首页（客户端组件）
 ├── components/                   # React 组件
 │   ├── Chart.tsx                 # Lightweight Charts 走势图组件
+│   ├── FundTable.tsx             # 基金自选表格
 │   ├── IndexCards.tsx            # 指数行情卡片列表
+│   ├── NavBar.tsx                # 顶部导航栏
 │   └── QuoteCard.tsx             # 单个行情卡片（当前未使用，保留备用）
 ├── lib/                          # 工具库/数据层
+│   ├── eastmoney.ts              # 天天基金数据获取、解析、缓存和 Mock
 │   └── yahoo.ts                  # Yahoo Finance 封装、缓存和 Mock 数据
 ├── public/                       # 静态资源
 ├── next.config.js                # Next.js 配置
@@ -106,13 +118,17 @@ USE_MOCK_DATA=true pnpm build
 
 在 Vercel 中可通过环境变量 `USE_MOCK_DATA=true` 开启。Mock 数据逻辑位于 `lib/yahoo.ts`，包含 `mockQuote()` 和 `generateMockHistory()`，会为常见标的（`^GSPC`、`^NDX`、QQQ、VOO、SPY、AAPL 等）生成模拟价格与历史走势。
 
+基金 Mock 数据预置了 `017641`、`016452` 两只基金的基础净值与名称，便于本地预览。
+
 ## API 接口
 
-| 路由                                | 方法 | 说明                                   |
-| ----------------------------------- | ---- | -------------------------------------- |
-| `/api/indices`                      | GET  | 返回标普 500 + 纳斯达克 100 的行情数组 |
-| `/api/quote/[symbol]`               | GET  | 返回单个标的实时行情                   |
-| `/api/historical/[symbol]?range=1y` | GET  | 返回指定时间范围的历史走势数据         |
+| 路由                                   | 方法 | 说明                                   |
+| -------------------------------------- | ---- | -------------------------------------- |
+| `/api/indices`                         | GET  | 返回标普 500 + 纳斯达克 100 的行情数组 |
+| `/api/quote/[symbol]`                  | GET  | 返回单个标的实时行情                   |
+| `/api/historical/[symbol]?range=1y`    | GET  | 返回指定时间范围的历史走势数据         |
+| `/api/fund/[code]`                     | GET  | 返回单只基金的实时估值与净值           |
+| `/api/fund/historical/[code]?range=1y` | GET  | 返回基金历史净值走势                   |
 
 支持的时间范围：`1w`、`1m`、`3m`、`1y`（代码中同时保留 `6m`、`5y` 的处理但未在前端展示）。
 
@@ -141,7 +157,7 @@ USE_MOCK_DATA=true pnpm build
 
 - **App Router 路由**：API 放在 `app/api/**/route.ts`，页面放在 `app/page.tsx`，布局放在 `app/layout.tsx`。
 - **客户端组件**：所有 React 组件和 `page.tsx` 都使用 `"use client"` 指令，因为需要浏览器 API（fetch、`ResizeObserver`、DOM 操作等）。
-- **服务端数据层**：`lib/yahoo.ts` 负责与 Yahoo Finance 交互、数据转换、缓存和 Mock。API Routes 只负责参数解析和 HTTP 响应。
+- **服务端数据层**：`lib/yahoo.ts` 负责与 Yahoo Finance 交互、数据转换、缓存和 Mock；`lib/eastmoney.ts` 负责天天基金接口的抓取、JSONP/JS 文本解析、缓存和 Mock。API Routes 只负责参数解析和 HTTP 响应。
 - **路径别名**：`tsconfig.json` 中配置 `"@/*": ["./*"]`，导入项目内部模块时优先使用 `@/components/...`、`@/lib/...`。
 - **TypeScript**：启用 `strict: true`，使用类型别名定义组件 Props 和接口。
 - **ESLint/Prettier**：提交前建议运行 `pnpm lint` 和 `pnpm format:check`；本地开发可使用 `pnpm format` 自动统一代码风格。
@@ -174,9 +190,9 @@ Vercel 部署时可在 Project Settings > Environment Variables 中配置。
 
 当前项目 **没有配置测试框架和测试文件**。若后续需要添加测试，推荐按以下方向引入：
 
-- 单元测试：`lib/yahoo.ts` 中的 `getPeriodStart`、`formatDate`、Mock 数据生成逻辑
-- 组件测试：`IndexCards`、`Chart` 等 UI 组件
-- API 测试：三个 API Routes 的响应格式和缓存行为
+- 单元测试：`lib/yahoo.ts`、`lib/eastmoney.ts` 中的 `getPeriodStart`、`formatDate`、Mock 数据生成逻辑
+- 组件测试：`IndexCards`、`Chart`、`FundTable`、`NavBar` 等 UI 组件
+- API 测试：基金相关 API Routes（`/api/fund/[code]`、`/api/fund/historical/[code]`）及原有指数 API 的响应格式和缓存行为
 
 常见可选方案：Jest + React Testing Library，或 Vitest。
 
@@ -206,5 +222,6 @@ Vercel 部署时可在 Project Settings > Environment Variables 中配置。
 ## 修改前必读
 
 - 修改 API 响应格式时，请同步更新 `README.md` 中的 API 说明和本文件。
-- 修改缓存时间或新增 Yahoo Finance API 调用时，注意 Serverless 内存/执行时间限制。
+- 修改缓存时间或新增 Yahoo Finance / 天天基金 API 调用时，注意 Serverless 内存/执行时间限制。
 - 若新增指数或标的，除了在 `app/api/indices/route.ts` 和 `app/page.tsx` 的 `INDICES` 数组中添加，还应在 `lib/yahoo.ts` 的 `getMockBasePrice` 中补充 Mock 基础价，保证 Mock 模式可用。
+- 若新增基金或标的，应在 `lib/eastmoney.ts` 的 `MOCK_FUND_BASE` 中补充 Mock 基础价与名称，保证 Mock 模式可用。
