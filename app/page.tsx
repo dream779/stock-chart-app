@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import IndexCards from "@/components/IndexCards";
-import Chart from "@/components/Chart";
+import { useEffect, useState } from 'react';
+import IndexCards from '@/components/IndexCards';
+import Chart from '@/components/Chart';
 
 interface HistoricalPoint {
   time: string;
@@ -16,28 +16,28 @@ interface PeriodStats {
 }
 
 const INDICES = [
-  { symbol: "^GSPC", name: "标普 500" },
-  { symbol: "^NDX", name: "纳斯达克 100" },
+  { symbol: '^GSPC', name: '标普 500' },
+  { symbol: '^NDX', name: '纳斯达克 100' },
 ];
 
 const RANGES = [
-  { label: "最近1周", value: "1w" },
-  { label: "最近1个月", value: "1m" },
-  { label: "最近3个月", value: "3m" },
-  { label: "最近1年", value: "1y" },
+  { label: '最近1周', value: '1w' },
+  { label: '最近1个月', value: '1m' },
+  { label: '最近3个月', value: '3m' },
+  { label: '最近1年', value: '1y' },
 ];
 
 export default function Home() {
-  const [range, setRange] = useState("1y");
-  const [selectedSymbol, setSelectedSymbol] = useState("^GSPC");
+  const [range, setRange] = useState('1y');
+  const [selectedSymbol, setSelectedSymbol] = useState('^GSPC');
   const [histories, setHistories] = useState<Record<string, HistoricalPoint[]>>({});
   const [stats, setStats] = useState<Record<string, PeriodStats>>({});
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
 
   async function fetchHistories(selectedRange: string) {
     setLoading(true);
-    setError("");
+    setError('');
 
     try {
       const results = await Promise.all(
@@ -47,7 +47,7 @@ export default function Home() {
           const json = await res.json();
 
           if (!json.success) {
-            throw new Error(`${index.name}: ${json.error || "获取历史数据失败"}`);
+            throw new Error(`${index.name}: ${json.error || '获取历史数据失败'}`);
           }
 
           return { symbol: index.symbol, data: json.data as HistoricalPoint[] };
@@ -67,9 +67,7 @@ export default function Home() {
           const startValue = sorted[0].value;
           const currentValue = sorted[sorted.length - 1].value;
           const changePercent =
-            sorted.length > 1
-              ? ((currentValue - startValue) / startValue) * 100
-              : 0;
+            sorted.length > 1 ? ((currentValue - startValue) / startValue) * 100 : 0;
           newStats[item.symbol] = { currentValue, startValue, changePercent };
         }
       });
@@ -77,7 +75,7 @@ export default function Home() {
       setHistories(map);
       setStats(newStats);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "请求失败");
+      setError(err instanceof Error ? err.message : '请求失败');
     } finally {
       setLoading(false);
     }
@@ -102,8 +100,8 @@ export default function Home() {
                 disabled={loading}
                 className={`px-3 py-1 text-sm rounded-full transition ${
                   range === r.value
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:bg-gray-50"
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:bg-gray-50'
                 }`}
               >
                 {r.label}
@@ -113,9 +111,7 @@ export default function Home() {
         </div>
 
         {loading && (
-          <div className="flex items-center justify-center flex-1 text-gray-500">
-            加载中...
-          </div>
+          <div className="flex items-center justify-center flex-1 text-gray-500">加载中...</div>
         )}
 
         {error && !loading && (

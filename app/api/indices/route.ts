@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
-import { getQuote } from "@/lib/yahoo";
+import { NextResponse } from 'next/server';
+import { getQuote } from '@/lib/yahoo';
 
 const INDICES = [
-  { symbol: "^GSPC", name: "标普 500" },
-  { symbol: "^NDX", name: "纳斯达克 100" },
+  { symbol: '^GSPC', name: '标普 500' },
+  { symbol: '^NDX', name: '纳斯达克 100' },
 ];
 
 export async function GET() {
@@ -23,8 +23,8 @@ export async function GET() {
             change: 0,
             changePercent: 0,
             previousClose: 0,
-            marketState: "ERROR",
-            currency: "USD",
+            marketState: 'ERROR',
+            currency: 'USD',
             lastUpdated: new Date().toISOString(),
             error: true,
           };
@@ -34,11 +34,11 @@ export async function GET() {
 
     return NextResponse.json({ success: true, data: results });
   } catch (error) {
-    console.error("Indices API error:", error);
+    console.error('Indices API error:', error);
     return NextResponse.json(
       {
         success: false,
-        error: "获取指数数据失败",
+        error: '获取指数数据失败',
         message: error instanceof Error ? error.message : String(error),
       },
       { status: 500 }

@@ -12,17 +12,18 @@
 
 ## File Structure
 
-| File | Change | Responsibility |
-|---|---|---|
+| File                        | Change | Responsibility                                                       |
+| --------------------------- | ------ | -------------------------------------------------------------------- |
 | `components/IndexCards.tsx` | Modify | 压缩卡片、移除股票代码、更新时间放到名称后、支持点击切换、显示激活态 |
-| `app/page.tsx` | Modify | 移除标题/副标题、引入选中状态、flex 占满视口、只渲染单个图表 |
-| `components/Chart.tsx` | Modify | 支持 `className` 与容器自适应高度，替代固定 360px |
+| `app/page.tsx`              | Modify | 移除标题/副标题、引入选中状态、flex 占满视口、只渲染单个图表         |
+| `components/Chart.tsx`      | Modify | 支持 `className` 与容器自适应高度，替代固定 360px                    |
 
 ---
 
 ### Task 1: 改造 IndexCards 为可选中、更紧凑的卡片
 
 **Files:**
+
 - Modify: `components/IndexCards.tsx`
 
 **目标：** 卡片更小、可点击、有激活态，只保留必要信息。
@@ -48,17 +49,15 @@ return (
     {indices.map((index) => {
       const isSelected = index.symbol === selectedSymbol;
       const isPositive = index.change >= 0;
-      const colorClass = isPositive ? "text-red-600" : "text-green-600";
-      const bgClass = isPositive ? "bg-red-50" : "bg-green-50";
+      const colorClass = isPositive ? 'text-red-600' : 'text-green-600';
+      const bgClass = isPositive ? 'bg-red-50' : 'bg-green-50';
 
       return (
         <div
           key={index.symbol}
           onClick={() => onSelect(index.symbol)}
           className={`bg-white rounded-lg shadow p-3 cursor-pointer transition ${
-            isSelected
-              ? "ring-2 ring-blue-600 bg-blue-50"
-              : "hover:bg-gray-50"
+            isSelected ? 'ring-2 ring-blue-600 bg-blue-50' : 'hover:bg-gray-50'
           }`}
         >
           <div className="flex justify-between items-start mb-1">
@@ -75,20 +74,18 @@ return (
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold">
               {index.price
-                ? index.price.toLocaleString("en-US", { maximumFractionDigits: 2 })
-                : "--"}
+                ? index.price.toLocaleString('en-US', { maximumFractionDigits: 2 })
+                : '--'}
             </span>
             {index.price > 0 && (
               <span className={`text-xs font-medium px-2 py-0.5 rounded ${bgClass} ${colorClass}`}>
-                {isPositive ? "+" : ""}
-                {index.change.toFixed(2)} ({isPositive ? "+" : ""}
+                {isPositive ? '+' : ''}
+                {index.change.toFixed(2)} ({isPositive ? '+' : ''}
                 {index.changePercent.toFixed(2)}%)
               </span>
             )}
           </div>
-          {index.error && (
-            <p className="text-xs text-red-500 mt-1">数据获取失败</p>
-          )}
+          {index.error && <p className="text-xs text-red-500 mt-1">数据获取失败</p>}
         </div>
       );
     })}
@@ -107,12 +104,14 @@ return (
 - [ ] **Step 4: 启动开发服务器做视觉检查**
 
 Run:
+
 ```bash
 cd /Users/liuyunlong/Desktop/MyProjects/stock-chart-app
 pnpm dev
 ```
 
 打开 http://localhost:3000，确认：
+
 - 卡片高度明显降低。
 - 股票代码已消失。
 - 更新时间在指数名称同一行。
@@ -130,6 +129,7 @@ git commit -m "feat: 压缩指数卡片，支持点击选中状态"
 ### Task 2: 页面布局改造：单图表、占满视口
 
 **Files:**
+
 - Modify: `app/page.tsx`
 
 **目标：** 去掉标题、引入选中状态、只渲染一个图表、让图表区域撑满剩余视口。
@@ -139,7 +139,7 @@ git commit -m "feat: 压缩指数卡片，支持点击选中状态"
 在 `Home` 组件顶部添加：
 
 ```tsx
-const [selectedSymbol, setSelectedSymbol] = useState("^GSPC");
+const [selectedSymbol, setSelectedSymbol] = useState('^GSPC');
 ```
 
 删除：
@@ -167,8 +167,8 @@ return (
               disabled={loading}
               className={`px-3 py-1 text-sm rounded-full transition ${
                 range === r.value
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:bg-gray-50"
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:bg-gray-50'
               }`}
             >
               {r.label}
@@ -178,9 +178,7 @@ return (
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center flex-1 text-gray-500">
-          加载中...
-        </div>
+        <div className="flex items-center justify-center flex-1 text-gray-500">加载中...</div>
       )}
 
       {error && !loading && (
@@ -209,6 +207,7 @@ return (
 - [ ] **Step 3: 验证页面首屏可见图表**
 
 刷新 http://localhost:3000，确认：
+
 - 页面顶部没有主/副标题。
 - 只显示一个图表（默认标普 500）。
 - 首屏完整显示图表，无纵向滚动条。
@@ -226,6 +225,7 @@ git commit -m "feat: 单图表布局，卡片切换，图表占满剩余视口"
 ### Task 3: Chart 组件支持自适应高度
 
 **Files:**
+
 - Modify: `components/Chart.tsx`
 
 **目标：** 让图表跟随父容器高度，而不是写死 360px。
@@ -253,24 +253,24 @@ export default function Chart({ data, title, stats, className }: ChartProps) {
 ```tsx
 const chart = createChart(chartContainerRef.current, {
   layout: {
-    background: { type: ColorType.Solid, color: "#ffffff" },
-    textColor: "#333333",
+    background: { type: ColorType.Solid, color: '#ffffff' },
+    textColor: '#333333',
   },
   grid: {
-    vertLines: { color: "#f0f0f0" },
-    horzLines: { color: "#f0f0f0" },
+    vertLines: { color: '#f0f0f0' },
+    horzLines: { color: '#f0f0f0' },
   },
   crosshair: { mode: 1 },
-  rightPriceScale: { borderColor: "#e0e0e0" },
-  timeScale: { borderColor: "#e0e0e0", timeVisible: false },
+  rightPriceScale: { borderColor: '#e0e0e0' },
+  timeScale: { borderColor: '#e0e0e0', timeVisible: false },
   width: chartContainerRef.current.clientWidth,
   height: chartContainerRef.current.clientHeight,
 });
 
 const series = chart.addAreaSeries({
-  lineColor: "#2563eb",
-  topColor: "rgba(37, 99, 235, 0.3)",
-  bottomColor: "rgba(37, 99, 235, 0.05)",
+  lineColor: '#2563eb',
+  topColor: 'rgba(37, 99, 235, 0.3)',
+  bottomColor: 'rgba(37, 99, 235, 0.05)',
   lineWidth: 2,
 });
 
@@ -286,7 +286,7 @@ const updateSize = () => {
   }
 };
 
-window.addEventListener("resize", updateSize);
+window.addEventListener('resize', updateSize);
 
 const resizeObserver = new ResizeObserver(updateSize);
 resizeObserver.observe(chartContainerRef.current);
@@ -296,7 +296,7 @@ resizeObserver.observe(chartContainerRef.current);
 
 ```tsx
 return () => {
-  window.removeEventListener("resize", updateSize);
+  window.removeEventListener('resize', updateSize);
   resizeObserver.disconnect();
   chart.remove();
 };
@@ -306,7 +306,7 @@ return () => {
 
 ```tsx
 return (
-  <div className={`flex flex-col h-full ${className || ""}`}>
+  <div className={`flex flex-col h-full ${className || ''}`}>
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
       {title && <h3 className="text-base font-semibold text-gray-900">{title}</h3>}
       {stats && (
@@ -316,12 +316,10 @@ return (
           </span>
           <span
             className={`text-sm font-medium px-2 py-0.5 rounded ${
-              isPositive
-                ? "bg-red-50 text-red-600"
-                : "bg-green-50 text-green-600"
+              isPositive ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
             }`}
           >
-            {isPositive ? "+" : ""}
+            {isPositive ? '+' : ''}
             {stats.changePercent.toFixed(2)}%
           </span>
         </div>
@@ -335,6 +333,7 @@ return (
 - [ ] **Step 4: 验证图表自适应**
 
 刷新页面，确认：
+
 - 图表高度随窗口大小变化自动调整。
 - 切换时间范围后图表仍然撑满容器。
 - 无控制台 ResizeObserver 报错。
@@ -351,6 +350,7 @@ git commit -m "feat: Chart 组件支持容器自适应高度"
 ### Task 4: 构建与最终验证
 
 **Files:**
+
 - Modify: 无
 
 - [ ] **Step 1: 运行 TypeScript / Next.js 构建**
@@ -365,6 +365,7 @@ Expected: 构建成功，无类型错误。
 - [ ] **Step 2: 最终人工验收清单**
 
 在 http://localhost:3000 检查：
+
 - [ ] 顶部无主标题、副标题。
 - [ ] 两张指数卡片紧凑并排（移动端堆叠）。
 - [ ] 卡片内无股票代码，更新时间在名称后。

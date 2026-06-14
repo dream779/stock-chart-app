@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 interface QuoteData {
   symbol: string;
@@ -18,8 +18,8 @@ interface QuoteCardProps {
 
 export default function QuoteCard({ data }: QuoteCardProps) {
   const isPositive = data.change >= 0;
-  const colorClass = isPositive ? "text-red-600" : "text-green-600";
-  const bgClass = isPositive ? "bg-red-50" : "bg-green-50";
+  const colorClass = isPositive ? 'text-red-600' : 'text-green-600';
+  const bgClass = isPositive ? 'bg-red-50' : 'bg-green-50';
 
   return (
     <div className="bg-white rounded-lg shadow p-6 mb-6">
@@ -35,22 +35,23 @@ export default function QuoteCard({ data }: QuoteCardProps) {
       <div className="flex items-baseline gap-3 mb-4">
         <span className="text-4xl font-bold">
           {data.price
-            ? `${data.currency === "CNY" ? "¥" : "$"}${data.price.toLocaleString("en-US", {
+            ? `${data.currency === 'CNY' ? '¥' : '$'}${data.price.toLocaleString('en-US', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 4,
               })}`
-            : "--"}
+            : '--'}
         </span>
         {data.price > 0 && (
           <span className={`text-base font-medium px-3 py-1 rounded ${bgClass} ${colorClass}`}>
-            {isPositive ? "+" : ""}
-            {data.change.toFixed(2)} ({isPositive ? "+" : ""}
+            {isPositive ? '+' : ''}
+            {data.change.toFixed(2)} ({isPositive ? '+' : ''}
             {data.changePercent.toFixed(2)}%)
           </span>
         )}
       </div>
       <div className="text-xs text-gray-400">
-        昨收: {data.previousClose.toFixed(2)} · 更新时间: {new Date(data.lastUpdated).toLocaleString("zh-CN")}
+        昨收: {data.previousClose.toFixed(2)} · 更新时间:{' '}
+        {new Date(data.lastUpdated).toLocaleString('zh-CN')}
       </div>
     </div>
   );

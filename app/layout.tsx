@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import type { Metadata } from 'next';
+import './globals.css';
 
 export const metadata: Metadata = {
-  title: "美股基金行情看板",
-  description: "查看标普500、纳斯达克100及自选基金数据",
+  title: '美股基金行情看板',
+  description: '查看标普500、纳斯达克100及自选基金数据',
 };
 
 export default function RootLayout({

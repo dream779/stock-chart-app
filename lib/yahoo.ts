@@ -1,10 +1,10 @@
-import YahooFinance from "yahoo-finance2";
+import YahooFinance from 'yahoo-finance2';
 
 const yahooFinance = new YahooFinance({
-  suppressNotices: ["yahooSurvey"],
+  suppressNotices: ['yahooSurvey'],
 });
 
-const USE_MOCK = process.env.USE_MOCK_DATA === "true";
+const USE_MOCK = process.env.USE_MOCK_DATA === 'true';
 
 // 内存缓存：行情 2 分钟，历史数据 1 小时
 interface CacheItem<T> {
@@ -47,23 +47,23 @@ export interface HistoricalPoint {
 }
 
 function formatDate(date: Date): string {
-  return date.toISOString().split("T")[0];
+  return date.toISOString().split('T')[0];
 }
 
 function getPeriodStart(range: string): Date {
   const now = new Date();
   switch (range) {
-    case "1w":
+    case '1w':
       return new Date(now.setDate(now.getDate() - 7));
-    case "1m":
+    case '1m':
       return new Date(now.setMonth(now.getMonth() - 1));
-    case "3m":
+    case '3m':
       return new Date(now.setMonth(now.getMonth() - 3));
-    case "6m":
+    case '6m':
       return new Date(now.setMonth(now.getMonth() - 6));
-    case "1y":
+    case '1y':
       return new Date(now.setFullYear(now.getFullYear() - 1));
-    case "5y":
+    case '5y':
       return new Date(now.setFullYear(now.getFullYear() - 5));
     default:
       return new Date(now.setFullYear(now.getFullYear() - 1));
@@ -91,8 +91,8 @@ function generateMockHistory(range: string, basePrice: number): HistoricalPoint[
 
 function getMockBasePrice(symbol: string): number {
   const map: Record<string, number> = {
-    "^GSPC": 5350,
-    "^NDX": 19200,
+    '^GSPC': 5350,
+    '^NDX': 19200,
     QQQ: 470,
     VOO: 485,
     SPY: 555,
@@ -118,8 +118,8 @@ function mockQuote(symbol: string): QuoteData {
     change: Number(change.toFixed(2)),
     changePercent: Number(changePercent.toFixed(2)),
     previousClose: Number(previousClose.toFixed(2)),
-    marketState: "REGULAR",
-    currency: "USD",
+    marketState: 'REGULAR',
+    currency: 'USD',
     lastUpdated: new Date().toISOString(),
   };
 }
@@ -144,8 +144,8 @@ export async function getQuote(symbol: string): Promise<QuoteData> {
     change: result.regularMarketChange ?? 0,
     changePercent: result.regularMarketChangePercent ?? 0,
     previousClose: result.regularMarketPreviousClose ?? 0,
-    marketState: result.marketState || "UNKNOWN",
-    currency: result.currency || "USD",
+    marketState: result.marketState || 'UNKNOWN',
+    currency: result.currency || 'USD',
     lastUpdated: result.regularMarketTime?.toISOString() ?? new Date().toISOString(),
   };
 
@@ -155,7 +155,7 @@ export async function getQuote(symbol: string): Promise<QuoteData> {
 
 export async function getHistorical(
   symbol: string,
-  range: string = "1y"
+  range: string = '1y'
 ): Promise<HistoricalPoint[]> {
   const cacheKey = `historical:${symbol.toUpperCase()}:${range}`;
   const cached = getCache<HistoricalPoint[]>(cacheKey);
@@ -173,7 +173,7 @@ export async function getHistorical(
   const result = await yahooFinance.historical(symbol, {
     period1,
     period2,
-    interval: "1d",
+    interval: '1d',
   });
 
   const data = result

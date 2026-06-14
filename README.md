@@ -101,11 +101,11 @@ stock-chart-app/
 
 ## API 接口
 
-| 接口 | 说明 | 示例 |
-|---|---|---|
-| `GET /api/indices` | 获取标普500、纳斯达克100数据 | `/api/indices` |
-| `GET /api/quote/:symbol` | 获取单个标的实时行情 | `/api/quote/QQQ` |
-| `GET /api/historical/:symbol?range=1y` | 获取历史走势数据 | `/api/historical/VOO?range=1y` |
+| 接口                                   | 说明                         | 示例                           |
+| -------------------------------------- | ---------------------------- | ------------------------------ |
+| `GET /api/indices`                     | 获取标普500、纳斯达克100数据 | `/api/indices`                 |
+| `GET /api/quote/:symbol`               | 获取单个标的实时行情         | `/api/quote/QQQ`               |
+| `GET /api/historical/:symbol?range=1y` | 获取历史走势数据             | `/api/historical/VOO?range=1y` |
 
 支持的时间范围：`1w`（1周）、`1m`（1个月）、`3m`（3个月）、`1y`（1年）
 
