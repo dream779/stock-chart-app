@@ -71,7 +71,7 @@ Table header, input box, add button, and global error banner are unchanged.
 
 ### Per-fund fetch
 
-After `rows` is set, a second effect (or a sub-effect) iterates `rows`, and for every row with `status === 'loading'`:
+A single `useEffect` keyed on `rows` runs whenever the rows array reference changes. Inside, it iterates `rows` and, for every row with `status === 'loading'`:
 
 1. Creates an `AbortController`, stores it in a ref keyed by `code`.
 2. `fetch('/api/fund/:code', { signal })`.
