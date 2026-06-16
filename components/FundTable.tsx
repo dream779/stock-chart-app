@@ -186,9 +186,9 @@ export default function FundTable() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {loading && codes.length === 0 ? (
+              {loadingCodes && rows.length === 0 ? (
                 Array.from({ length: 2 }).map((_, i) => (
-                  <tr key={i}>
+                  <tr key={`init-${i}`}>
                     {Array.from({ length: 7 }).map((_, j) => (
                       <td key={j} className="px-4 py-3">
                         <div className="h-4 bg-gray-100 rounded animate-pulse" />
@@ -196,28 +196,74 @@ export default function FundTable() {
                     ))}
                   </tr>
                 ))
-              ) : codes.length === 0 ? (
+              ) : rows.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
                     暂无自选基金，请输入基金代码添加
                   </td>
                 </tr>
               ) : (
-                funds.map((fund) => {
+                rows.map((row) => {
+                  if (row.status === 'loading') {
+                    return (
+                      <tr key={row.code} className="hover:bg-gray-50 cursor-pointer transition">
+                        <td
+                          onClick={() => router.push(`/fund/${row.code}`)}
+                          className="px-4 py-3 text-gray-400 font-mono text-xs"
+                        >
+                          {row.code}
+                        </td>
+                        {Array.from({ length: 5 }).map((_, j) => (
+                          <td key={j} className="px-4 py-3">
+                            <div className="h-4 bg-gray-100 rounded animate-pulse" />
+                          </td>
+                        ))}
+                        <td className="px-4 py-3 text-right text-gray-300">—</td>
+                      </tr>
+                    );
+                  }
+
+                  if (row.status === 'error') {
+                    return (
+                      <tr key={row.code} className="hover:bg-gray-50 cursor-pointer transition">
+                        <td
+                          colSpan={6}
+                          onClick={() => router.push(`/fund/${row.code}`)}
+                          className="px-4 py-3 font-medium text-gray-900 max-w-[200px] truncate"
+                        >
+                          {row.code}
+                          <span className="ml-2 text-xs text-red-500">
+                            (获取失败{row.error ? `: ${row.error}` : ''})
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemove(row.code);
+                            }}
+                            className="text-gray-400 hover:text-red-600 transition"
+                            title="删除"
+                          >
+                            ×
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  const fund = row.data;
                   const isPositive = fund.changePercent !== null ? fund.changePercent >= 0 : true;
                   const colorClass = isPositive ? 'text-red-600' : 'text-green-600';
 
                   return (
                     <tr
-                      key={fund.code}
+                      key={row.code}
                       onClick={() => router.push(`/fund/${fund.code}`)}
                       className="hover:bg-gray-50 cursor-pointer transition"
                     >
                       <td className="px-4 py-3 font-medium text-gray-900 max-w-[200px] truncate">
                         {fund.name || fund.code}
-                        {fund.error && (
-                          <span className="ml-2 text-xs text-red-500">(获取失败)</span>
-                        )}
                       </td>
                       <td className="px-4 py-3 text-gray-500">{fund.code}</td>
                       <td className="px-4 py-3">{fund.nav > 0 ? fund.nav.toFixed(4) : '--'}</td>
