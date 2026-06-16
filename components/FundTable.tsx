@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { getWatchlist, addToWatchlist, removeFromWatchlist } from '@/lib/watchlist-api';
 
 interface FundRow {
   code: string;
@@ -14,9 +15,6 @@ interface FundRow {
   lastUpdated: string;
   error?: boolean;
 }
-
-const DEFAULT_CODES = ['017641', '016452'];
-const STORAGE_KEY = 'fund-watchlist';
 
 function formatTime(iso?: string | null): string {
   if (!iso) return '--';
@@ -39,23 +37,23 @@ export default function FundTable() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const stored = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
-    if (stored) {
+    (async () => {
       try {
-        const parsed = JSON.parse(stored) as string[];
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setCodes(parsed);
-          return;
-        }
-      } catch {
-        // fall through to defaults
+        const data = await getWatchlist();
+        setCodes(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '读取自选失败');
+      } finally {
+        setLoading(false);
       }
-    }
-    setCodes(DEFAULT_CODES);
+    })();
   }, []);
 
   useEffect(() => {
-    if (codes.length === 0) return;
+    if (codes.length === 0) {
+      setFunds([]);
+      return;
+    }
 
     let cancelled = false;
     setLoading(true);
@@ -100,13 +98,7 @@ export default function FundTable() {
     };
   }, [codes]);
 
-  useEffect(() => {
-    if (codes.length > 0) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(codes));
-    }
-  }, [codes]);
-
-  function handleAdd() {
+  async function handleAdd() {
     const normalized = input.trim();
     if (!/^\d{6}$/.test(normalized)) {
       setError('基金代码必须为6位数字');
@@ -116,13 +108,23 @@ export default function FundTable() {
       setError('该基金已在自选列表中');
       return;
     }
-    setCodes([...codes, normalized]);
-    setInput('');
-    setError('');
+    try {
+      await addToWatchlist(normalized);
+      setCodes([normalized, ...codes]);
+      setInput('');
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '添加失败');
+    }
   }
 
-  function handleRemove(code: string) {
-    setCodes(codes.filter((c) => c !== code));
+  async function handleRemove(code: string) {
+    try {
+      await removeFromWatchlist(code);
+      setCodes(codes.filter((c) => c !== code));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '删除失败');
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -172,8 +174,8 @@ export default function FundTable() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {loading ? (
-                Array.from({ length: Math.max(codes.length, 2) }).map((_, i) => (
+              {loading && codes.length === 0 ? (
+                Array.from({ length: 2 }).map((_, i) => (
                   <tr key={i}>
                     {Array.from({ length: 7 }).map((_, j) => (
                       <td key={j} className="px-4 py-3">
@@ -182,7 +184,7 @@ export default function FundTable() {
                     ))}
                   </tr>
                 ))
-              ) : funds.length === 0 ? (
+              ) : codes.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
                     暂无自选基金，请输入基金代码添加

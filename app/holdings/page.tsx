@@ -5,7 +5,7 @@ import NavBar from '@/components/NavBar';
 import HoldingsSummary from '@/components/HoldingsSummary';
 import HoldingsTable from '@/components/HoldingsTable';
 import HoldingForm from '@/components/HoldingForm';
-import { getAllHoldings, saveHolding, deleteHolding } from '@/lib/holdings-db';
+import { getAllHoldings, saveHolding, deleteHolding } from '@/lib/holdings-api';
 import { calculateSummary, type Holding, type HoldingWithQuote } from '@/lib/holdings';
 import type { FundQuoteData } from '@/lib/eastmoney';
 

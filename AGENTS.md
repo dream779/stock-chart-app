@@ -11,9 +11,9 @@
 - 展示标普 500、纳斯达克 100 的实时行情卡片
 - 支持在最近 1 周 / 1 个月 / 3 个月 / 1 年之间切换历史走势
 - 使用 Lightweight Charts 绘制面积图
-- 基金自选：输入基金代码加入自选列表，表格展示净值、估算净值与涨跌幅
+- 基金自选：输入基金代码加入自选列表，表格展示净值、估算净值与涨跌幅；数据持久化到服务端 Postgres
 - 基金详情：点击自选基金查看历史净值走势，支持 1 周 / 1 个月 / 3 个月 / 1 年 周期切换
-- 持仓收益：手动录入基金持仓（份额、成本、持有金额），自动计算持有收益、收益率和总资产
+- 持仓收益：手动录入基金持仓（份额、成本、持有金额），自动计算持有收益、收益率和总资产；数据持久化到服务端 Postgres
 - 内置内存缓存，减少外部 API 调用
 - 提供 Mock 数据模式，便于本地开发和界面预览
 
@@ -24,6 +24,7 @@
 - **样式**：Tailwind CSS 3.4 + PostCSS + autoprefixer
 - **图表**：lightweight-charts 4.x
 - **数据源**：yahoo-finance2 3.x
+- **数据库**：Vercel Marketplace Neon Postgres（通过 `@vercel/postgres` SDK 访问，存持仓数据）
 - **时间处理**：dayjs
 - **包管理器**：pnpm
 - **代码检查**：ESLint 8（`eslint-config-next` + `eslint-config-prettier`）
@@ -40,6 +41,8 @@ stock-chart-app/
 │   │   │   ├── [code]/           # 单只基金实时估值/净值
 │   │   │   └── historical/[code]/ # 基金历史净值
 │   │   ├── historical/[symbol]/  # 获取历史数据
+│   │   ├── holdings/             # 持仓 CRUD（GET/POST/DELETE，连 Postgres）
+│   │   ├── watchlist/            # 自选基金 CRUD（GET/POST/DELETE，连 Postgres）
 │   │   ├── indices/              # 获取标普 500 + 纳斯达克 100 行情
 │   │   └── quote/[symbol]/       # 获取单个标的行情
 │   ├── fund/                     # 基金页面
@@ -63,7 +66,9 @@ stock-chart-app/
 ├── lib/                          # 工具库/数据层
 │   ├── eastmoney.ts              # 天天基金数据获取、解析、缓存和 Mock
 │   ├── holdings.ts               # 持仓收益计算工具（新增）
-│   ├── holdings-db.ts            # 持仓 IndexedDB 封装（新增）
+│   ├── holdings-api.ts           # 持仓 API 客户端封装（新增，调用 /api/holdings）
+│   ├── watchlist-api.ts          # 自选基金 API 客户端封装（新增，调用 /api/watchlist）
+│   ├── db.ts                     # Postgres 客户端与建表（新增，holdings + watchlist 两张表）
 │   └── yahoo.ts                  # Yahoo Finance 封装、缓存和 Mock 数据
 ├── public/                       # 静态资源
 ├── next.config.js                # Next.js 配置
@@ -137,6 +142,12 @@ USE_MOCK_DATA=true pnpm build
 | `/api/historical/[symbol]?range=1y`    | GET  | 返回指定时间范围的历史走势数据         |
 | `/api/fund/[code]`                     | GET  | 返回单只基金的实时估值与净值           |
 | `/api/fund/historical/[code]?range=1y` | GET  | 返回基金历史净值走势                   |
+| `/api/holdings`                         | GET  | 返回所有持仓                            |
+| `/api/holdings`                         | POST | 新增或更新持仓（按 code upsert）        |
+| `/api/holdings?code=xxx`                | DELETE | 删除指定 code 的持仓                  |
+| `/api/watchlist`                        | GET  | 返回自选基金代码列表（按 added_at DESC）|
+| `/api/watchlist`                        | POST | 添加自选基金（body `{code}`，6 位数字校验）|
+| `/api/watchlist?code=xxx`               | DELETE | 从自选中移除指定 code                |
 
 支持的时间范围：`1w`、`1m`、`3m`、`1y`（代码中同时保留 `6m`、`5y` 的处理但未在前端展示）。
 
@@ -165,7 +176,7 @@ USE_MOCK_DATA=true pnpm build
 
 - **App Router 路由**：API 放在 `app/api/**/route.ts`，页面放在 `app/page.tsx`，布局放在 `app/layout.tsx`。
 - **客户端组件**：所有 React 组件和 `page.tsx` 都使用 `"use client"` 指令，因为需要浏览器 API（fetch、`ResizeObserver`、DOM 操作等）。
-- **服务端数据层**：`lib/yahoo.ts` 负责与 Yahoo Finance 交互、数据转换、缓存和 Mock；`lib/eastmoney.ts` 负责天天基金接口的抓取、JSONP/JS 文本解析、缓存和 Mock；`lib/holdings.ts` 负责持仓收益计算；`lib/holdings-db.ts` 负责浏览器 IndexedDB 持仓持久化。API Routes 只负责参数解析和 HTTP 响应。
+- **服务端数据层**：`lib/yahoo.ts` 负责与 Yahoo Finance 交互、数据转换、缓存和 Mock；`lib/eastmoney.ts` 负责天天基金接口的抓取、JSONP/JS 文本解析、缓存和 Mock；`lib/holdings.ts` 负责持仓收益计算；`lib/holdings-api.ts` 负责调用 `/api/holdings` 读写服务端 Postgres（持仓表）；`lib/watchlist-api.ts` 负责调用 `/api/watchlist` 读写服务端 Postgres（自选基金表）；`lib/db.ts` 导出共享的 `sql` 客户端与 `ensureSchema()`，统一管理所有表结构。API Routes 只负责参数解析和 HTTP 响应。
 - **路径别名**：`tsconfig.json` 中配置 `"@/*": ["./*"]`，导入项目内部模块时优先使用 `@/components/...`、`@/lib/...`。
 - **TypeScript**：启用 `strict: true`，使用类型别名定义组件 Props 和接口。
 - **ESLint/Prettier**：提交前建议运行 `pnpm lint` 和 `pnpm format:check`；本地开发可使用 `pnpm format` 自动统一代码风格。
@@ -182,9 +193,10 @@ USE_MOCK_DATA=true pnpm build
 
 ## 环境变量
 
-| 变量名          | 说明                               | 默认值  |
-| --------------- | ---------------------------------- | ------- |
-| `USE_MOCK_DATA` | 设置为 `true` 时启用 Mock 数据模式 | `false` |
+| 变量名          | 说明                                                | 默认值  |
+| --------------- | --------------------------------------------------- | ------- |
+| `USE_MOCK_DATA` | 设置为 `true` 时启用 Mock 数据模式                  | `false` |
+| `POSTGRES_URL` 等  | Vercel Marketplace Neon 集成自动注入，无需手动配置 | - |
 
 本地开发时通过 `.env.local` 设置（已被 `.gitignore` 忽略）：
 
@@ -192,7 +204,7 @@ USE_MOCK_DATA=true pnpm build
 USE_MOCK_DATA=true
 ```
 
-Vercel 部署时可在 Project Settings > Environment Variables 中配置。
+Vercel 部署时可在 Project Settings > Environment Variables 中配置。Neon 集成（Storage > Neon）已通过 Vercel Marketplace 安装，会自动向 Production / Preview / Development 注入 `POSTGRES_URL` / `POSTGRES_PRISMA_URL` / `POSTGRES_URL_NON_POOLING` / `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_HOST` / `POSTGRES_DATABASE` 等变量。首次访问任一数据接口时由 `lib/db.ts` 的 `ensureSchema()` 自动建表（`CREATE TABLE IF NOT EXISTS`），目前包含 `holdings`（持仓）和 `watchlist`（自选基金）两张表。
 
 ## 测试策略
 
@@ -207,6 +219,7 @@ Vercel 部署时可在 Project Settings > Environment Variables 中配置。
 ## 安全与部署注意事项
 
 - **不要提交 `.env.local`**：已包含在 `.gitignore` 中。
+- **不要提交 `.env*` 文件**：包含 `POSTGRES_*` 凭据，已在 `.gitignore` 中忽略。
 - **数据源依赖**：Yahoo Finance 在国内部分网络环境下可能 403/无法访问。生产部署在 Vercel（海外 Serverless）通常可正常访问；若不可用，请切到 Mock 模式。
 - **缓存非持久化**：Serverless 冷启动会清空内存缓存，极端情况下可能重新触发外部 API 请求。
 - **没有认证/授权**：当前 API 全部公开，不要在此项目中处理敏感金融账户或个人隐私数据。
