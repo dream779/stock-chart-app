@@ -2,9 +2,7 @@ export interface Holding {
   code: string;
   name: string;
   shares: number;
-  amount: number;
   costPrice: number;
-  pendingAmount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -14,6 +12,11 @@ export interface HoldingWithQuote extends Holding {
   nav?: number;
   estimatedNav?: number | null;
   changePercent?: number | null;
+  pendingAmount?: number;
+  pendingCount?: number;
+  hasDcaPlan?: boolean;
+  dcaFrequency?: 'daily' | 'weekly' | 'monthly';
+  dcaConfirmationDays?: number;
 }
 
 export interface HoldingCalcs {
@@ -21,12 +24,14 @@ export interface HoldingCalcs {
   holdingGain: number;
   gainRate: number;
   estimatedGain: number | null;
-  totalAssets: number;
+  marketValue: number;
 }
 
-export function calculateHolding(holding: HoldingWithQuote): Omit<HoldingCalcs, 'totalAssets'> {
+export function calculateHolding(holding: HoldingWithQuote): HoldingCalcs {
   const totalCost = holding.costPrice * holding.shares;
-  const holdingGain = holding.amount - totalCost;
+  const nav = holding.nav ?? 0;
+  const marketValue = holding.shares * nav;
+  const holdingGain = marketValue - totalCost;
   const gainRate = totalCost > 0 ? (holdingGain / totalCost) * 100 : 0;
 
   let estimatedGain: number | null = null;
@@ -43,21 +48,39 @@ export function calculateHolding(holding: HoldingWithQuote): Omit<HoldingCalcs, 
     holdingGain: Number(holdingGain.toFixed(2)),
     gainRate: Number(gainRate.toFixed(2)),
     estimatedGain: estimatedGain !== null ? Number(estimatedGain.toFixed(2)) : null,
+    marketValue: Number(marketValue.toFixed(2)),
   };
 }
 
-export function calculateSummary(holdings: HoldingWithQuote[]): HoldingCalcs {
-  const totalAssets = holdings.reduce((sum, h) => sum + h.amount + h.pendingAmount, 0);
+export interface SummaryCalcs {
+  totalAssets: number;
+  totalCost: number;
+  totalMarketValue: number;
+  holdingGain: number;
+  gainRate: number;
+  totalPending: number;
+  totalPendingCount: number;
+}
+
+export function calculateSummary(holdings: HoldingWithQuote[]): SummaryCalcs {
+  const totalMarketValue = holdings.reduce(
+    (sum, h) => sum + (h.nav ? h.shares * h.nav : 0),
+    0
+  );
   const totalCost = holdings.reduce((sum, h) => sum + h.costPrice * h.shares, 0);
-  const totalHoldingAmount = holdings.reduce((sum, h) => sum + h.amount, 0);
-  const holdingGain = totalHoldingAmount - totalCost;
+  const totalPending = holdings.reduce((sum, h) => sum + (h.pendingAmount ?? 0), 0);
+  const totalPendingCount = holdings.reduce((sum, h) => sum + (h.pendingCount ?? 0), 0);
+  const holdingGain = totalMarketValue - totalCost;
   const gainRate = totalCost > 0 ? (holdingGain / totalCost) * 100 : 0;
+  const totalAssets = totalMarketValue + totalPending;
 
   return {
     totalAssets: Number(totalAssets.toFixed(2)),
     totalCost: Number(totalCost.toFixed(2)),
+    totalMarketValue: Number(totalMarketValue.toFixed(2)),
     holdingGain: Number(holdingGain.toFixed(2)),
     gainRate: Number(gainRate.toFixed(2)),
-    estimatedGain: null,
+    totalPending: Number(totalPending.toFixed(2)),
+    totalPendingCount,
   };
 }

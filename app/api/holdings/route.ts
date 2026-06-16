@@ -19,9 +19,7 @@ const fromRow = (r: Row): Holding => ({
   code: r.code,
   name: r.name,
   shares: Number(r.shares),
-  amount: Number(r.amount),
   costPrice: Number(r.cost_price),
-  pendingAmount: Number(r.pending_amount),
   createdAt: r.created_at.toISOString(),
   updatedAt: r.updated_at.toISOString(),
 });
@@ -66,18 +64,16 @@ export async function POST(req: Request) {
         ${body.code},
         ${body.name},
         ${body.shares ?? 0},
-        ${body.amount ?? 0},
+        0,
         ${body.costPrice ?? 0},
-        ${body.pendingAmount ?? 0},
+        0,
         ${createdAt},
         NOW()
       )
       ON CONFLICT (code) DO UPDATE SET
         name           = EXCLUDED.name,
         shares         = EXCLUDED.shares,
-        amount         = EXCLUDED.amount,
         cost_price     = EXCLUDED.cost_price,
-        pending_amount = EXCLUDED.pending_amount,
         updated_at     = NOW()
     `;
 

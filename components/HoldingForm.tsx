@@ -2,10 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import type { Holding } from '@/lib/holdings';
+import type { DcaPlan, DcaFrequency } from '@/lib/dca-api';
+import DcaPlanSection, { type DcaPlanFormState } from './DcaPlanSection';
+
+export interface DcaPlanInput {
+  amountPerPeriod: number;
+  frequency: DcaFrequency;
+  startDate: string;
+  confirmationDays: number;
+}
 
 interface HoldingFormProps {
   initialHolding?: Partial<Holding>;
-  onSave: (holding: Holding) => void;
+  initialDcaPlan?: DcaPlan | null;
+  pendingCount?: number;
+  onSave: (data: { holding: Holding; dcaPlan: DcaPlanInput | null }) => void;
   onCancel: () => void;
 }
 
@@ -13,21 +24,36 @@ interface FormState {
   code: string;
   name: string;
   shares: string;
-  amount: string;
   costPrice: string;
-  pendingAmount: string;
 }
 
-export default function HoldingForm({ initialHolding, onSave, onCancel }: HoldingFormProps) {
+function todayInputValue(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export default function HoldingForm({
+  initialHolding,
+  initialDcaPlan,
+  pendingCount,
+  onSave,
+  onCancel,
+}: HoldingFormProps) {
   const isEdit = Boolean(initialHolding?.code);
+  const hasExistingPlan = Boolean(initialDcaPlan);
 
   const [form, setForm] = useState<FormState>({
     code: '',
     name: '',
     shares: '',
-    amount: '',
     costPrice: '',
-    pendingAmount: '',
+  });
+
+  const [plan, setPlan] = useState<DcaPlanFormState>({
+    enabled: hasExistingPlan,
+    amountPerPeriod: initialDcaPlan?.amountPerPeriod?.toString() ?? '',
+    frequency: (initialDcaPlan?.frequency as DcaFrequency) ?? 'daily',
+    startDate: initialDcaPlan?.startDate ?? todayInputValue(),
+    confirmationDays: initialDcaPlan?.confirmationDays ?? 2,
   });
 
   const [error, setError] = useState('');
@@ -38,9 +64,7 @@ export default function HoldingForm({ initialHolding, onSave, onCancel }: Holdin
         code: initialHolding.code || '',
         name: initialHolding.name || '',
         shares: initialHolding.shares?.toString() || '',
-        amount: initialHolding.amount?.toString() || '',
         costPrice: initialHolding.costPrice?.toString() || '',
-        pendingAmount: initialHolding.pendingAmount?.toString() || '0',
       });
     }
   }, [initialHolding]);
@@ -61,69 +85,84 @@ export default function HoldingForm({ initialHolding, onSave, onCancel }: Holdin
     setError('');
   }
 
-  function validate(): Holding | null {
+  function validate(): { holding: Holding; dcaPlan: DcaPlanInput | null } | null {
     const code = form.code.trim();
     if (!/^\d{6}$/.test(code)) {
       setError('基金代码必须为 6 位数字');
       return null;
     }
 
+    const shares = Number(form.shares);
+    const costPrice = Number(form.costPrice);
+    const name = form.name.trim();
+
     if (form.shares.trim() === '') {
       setError('持有份额不能为空');
       return null;
     }
-    if (form.amount.trim() === '') {
-      setError('持有金额不能为空');
+    if (!Number.isFinite(shares) || shares < 0) {
+      setError('持有份额必须大于等于 0');
       return null;
     }
     if (form.costPrice.trim() === '') {
       setError('持仓成本价不能为空');
       return null;
     }
-
-    const shares = Number(form.shares);
-    const amount = Number(form.amount);
-    const costPrice = Number(form.costPrice);
-    const pendingAmount = Number(form.pendingAmount || 0);
-
-    if (!Number.isFinite(shares) || shares <= 0) {
-      setError('持有份额必须大于 0');
-      return null;
-    }
-    if (!Number.isFinite(amount) || amount < 0) {
-      setError('持有金额不能为负数');
-      return null;
-    }
     if (!Number.isFinite(costPrice) || costPrice <= 0) {
       setError('持仓成本价必须大于 0');
       return null;
     }
-    if (!Number.isFinite(pendingAmount) || pendingAmount < 0) {
-      setError('待确认金额不能为负数');
-      return null;
+
+    let dcaPlan: DcaPlanInput | null = null;
+    if (plan.enabled) {
+      const amount = Number(plan.amountPerPeriod);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        setError('定投金额必须大于 0');
+        return null;
+      }
+      if (!plan.startDate) {
+        setError('请选择定投开始日期');
+        return null;
+      }
+      dcaPlan = {
+        amountPerPeriod: amount,
+        frequency: plan.frequency,
+        startDate: plan.startDate,
+        confirmationDays: plan.confirmationDays,
+      };
+    } else if (hasExistingPlan) {
+      dcaPlan = null;
     }
 
     const now = new Date().toISOString();
     return {
-      code,
-      name: form.name.trim(),
-      shares,
-      amount,
-      costPrice,
-      pendingAmount,
-      createdAt: initialHolding?.createdAt || now,
-      updatedAt: now,
+      holding: {
+        code,
+        name,
+        shares,
+        costPrice,
+        createdAt: initialHolding?.createdAt || now,
+        updatedAt: now,
+      },
+      dcaPlan,
     };
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const holding = validate();
-    if (holding) onSave(holding);
+    const result = validate();
+    if (result) onSave(result);
   }
+
+  const sharesReadOnly = hasExistingPlan;
+  const costReadOnly = hasExistingPlan;
+  const readOnlyHint = hasExistingPlan
+    ? '该持仓已绑定定投计划，份额与成本由系统按 NAV 结算自动维护'
+    : '';
 
   const inputClass =
     'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600';
+  const readOnlyClass = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-100 text-gray-500 cursor-not-allowed';
 
   return (
     <div
@@ -182,7 +221,7 @@ export default function HoldingForm({ initialHolding, onSave, onCancel }: Holdin
               type="text"
               value={form.name}
               onChange={(e) => handleChange('name', e.target.value)}
-              placeholder="可选，提交后会用实时名称覆盖"
+              placeholder="提交后会用实时名称覆盖"
               className={inputClass}
             />
           </div>
@@ -202,29 +241,11 @@ export default function HoldingForm({ initialHolding, onSave, onCancel }: Holdin
                 value={form.shares}
                 onChange={(e) => handleChange('shares', e.target.value)}
                 placeholder="10000"
-                className={inputClass}
+                disabled={sharesReadOnly}
+                title={readOnlyHint}
+                className={sharesReadOnly ? readOnlyClass : inputClass}
               />
             </div>
-            <div>
-              <label
-                htmlFor="holding-amount"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                持有金额
-              </label>
-              <input
-                id="holding-amount"
-                type="number"
-                step="0.01"
-                value={form.amount}
-                onChange={(e) => handleChange('amount', e.target.value)}
-                placeholder="8500.00"
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div>
               <label
                 htmlFor="holding-costPrice"
@@ -239,27 +260,24 @@ export default function HoldingForm({ initialHolding, onSave, onCancel }: Holdin
                 value={form.costPrice}
                 onChange={(e) => handleChange('costPrice', e.target.value)}
                 placeholder="0.8080"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="holding-pendingAmount"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                待确认金额
-              </label>
-              <input
-                id="holding-pendingAmount"
-                type="number"
-                step="0.01"
-                value={form.pendingAmount}
-                onChange={(e) => handleChange('pendingAmount', e.target.value)}
-                placeholder="0"
-                className={inputClass}
+                disabled={costReadOnly}
+                title={readOnlyHint}
+                className={costReadOnly ? readOnlyClass : inputClass}
               />
             </div>
           </div>
+
+          {hasExistingPlan && (
+            <p className="text-xs text-gray-500 -mt-2">
+              {readOnlyHint}
+            </p>
+          )}
+
+          <DcaPlanSection
+            value={plan}
+            onChange={setPlan}
+            pendingCount={pendingCount}
+          />
 
           <div className="flex gap-3 pt-2">
             <button
