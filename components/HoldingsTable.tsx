@@ -41,7 +41,6 @@ export default function HoldingsTable({ holdings, onEdit, onDelete }: HoldingsTa
             <thead className="bg-gray-50 text-gray-600 font-medium">
               <tr>
                 <th className="px-4 py-3">基金名称</th>
-                <th className="px-4 py-3 text-right">确认份额</th>
                 <th className="px-4 py-3 text-right">确认市值</th>
                 <th className="px-4 py-3 text-right">持有收益</th>
                 <th className="px-4 py-3 text-right">收益率</th>
@@ -72,17 +71,10 @@ export default function HoldingsTable({ holdings, onEdit, onDelete }: HoldingsTa
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-xs text-gray-500">{holding.code}</span>
                             {holding.hasDcaPlan && holding.dcaFrequency && (
-                              <DcaStatusBadge
-                                frequency={holding.dcaFrequency}
-                                pendingCount={holding.pendingCount ?? 0}
-                                pendingAmount={holding.pendingAmount ?? 0}
-                              />
+                              <DcaStatusBadge frequency={holding.dcaFrequency} />
                             )}
                           </div>
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {holding.shares.toLocaleString('zh-CN', { maximumFractionDigits: 4 })}
                       </td>
                       <td className="px-4 py-3 text-right">
                         {navLoading ? (
@@ -147,7 +139,7 @@ export default function HoldingsTable({ holdings, onEdit, onDelete }: HoldingsTa
                     </tr>
                     {isExpanded && (
                       <tr key={`${holding.code}-expanded`} className="bg-gray-50">
-                        <td colSpan={7} className="px-4 py-3">
+                        <td colSpan={6} className="px-4 py-3">
                           <ReturnHistoryChart code={holding.code} />
                         </td>
                       </tr>
