@@ -194,6 +194,50 @@ export function parseFundHistoryResponse(text: string, range: string): FundHisto
     }));
 }
 
+export interface LatestConfirmedNav {
+  date: string;
+  nav: number;
+}
+
+export async function getLatestConfirmedNav(code: string): Promise<LatestConfirmedNav | null> {
+  const normalizedCode = code.trim();
+  validateFundCode(normalizedCode);
+
+  if (USE_MOCK) {
+    return { date: formatDate(new Date()), nav: 1.0 };
+  }
+
+  const url = `http://fund.eastmoney.com/pingzhongdata/${normalizedCode}.js?v=${Date.now()}`;
+  const res = await fetch(url, {
+    headers: { Referer: 'http://fund.eastmoney.com/' },
+  });
+
+  if (!res.ok) return null;
+
+  const text = await res.text();
+  const start = text.indexOf('Data_netWorthTrend = ');
+  if (start === -1) return null;
+
+  const arrText = text.slice(start + 21).split(';')[0];
+  let raw: EastMoneyHistoryItem[];
+  try {
+    raw = JSON.parse(arrText) as EastMoneyHistoryItem[];
+  } catch {
+    return null;
+  }
+
+  for (let i = raw.length - 1; i >= 0; i--) {
+    const item = raw[i];
+    if (item.y !== null && item.y !== undefined) {
+      return {
+        date: formatDate(new Date(item.x)),
+        nav: Number(item.y),
+      };
+    }
+  }
+  return null;
+}
+
 export async function getFundQuote(code: string): Promise<FundQuoteData> {
   const normalizedCode = code.trim();
   validateFundCode(normalizedCode);
@@ -208,12 +252,10 @@ export async function getFundQuote(code: string): Promise<FundQuoteData> {
     return data;
   }
 
-  // East Money-provided endpoint, called server-side only.
+  // 1) EastMoney's gz endpoint: name, change %, intraday estimate (gsz)
   const url = `http://fundgz.1234567.com.cn/js/${normalizedCode}.js?rt=${Date.now()}`;
   const res = await fetch(url, {
-    headers: {
-      Referer: 'http://fund.eastmoney.com/',
-    },
+    headers: { Referer: 'http://fund.eastmoney.com/' },
   });
 
   if (!res.ok) {
@@ -222,6 +264,17 @@ export async function getFundQuote(code: string): Promise<FundQuoteData> {
 
   const text = await res.text();
   const data = parseFundQuoteResponse(text);
+
+  // 2) Override `nav` / `navDate` with the latest confirmed NAV from
+  //    pingzhongdata — that endpoint's daily series updates after the fund
+  //    company publishes the official NAV (~8-10pm same day), while the gz
+  //    endpoint's `dwjz` often lags by 1 day for domestic T+0 funds.
+  const confirmed = await getLatestConfirmedNav(normalizedCode);
+  if (confirmed) {
+    data.nav = confirmed.nav;
+    data.navDate = confirmed.date;
+  }
+
   setCache(cacheKey, data, QUOTE_TTL);
   return data;
 }
