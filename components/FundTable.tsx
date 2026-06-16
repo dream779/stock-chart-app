@@ -62,19 +62,63 @@ export default function FundTable() {
     };
   }, []);
 
+  useEffect(() => {
+    const loadingRows = rows.filter(
+      (r): r is Extract<Row, { status: 'loading' }> => r.status === 'loading'
+    );
+    if (loadingRows.length === 0) return;
+
+    const controllers = controllersRef.current;
+
+    for (const row of loadingRows) {
+      if (controllers.has(row.code)) continue;
+      const controller = new AbortController();
+      controllers.set(row.code, controller);
+
+      (async () => {
+        try {
+          const res = await fetch(`/api/fund/${encodeURIComponent(row.code)}`, {
+            signal: controller.signal,
+          });
+          const json = await res.json();
+          if (!json.success) {
+            throw new Error(json.message || '获取失败');
+          }
+          setRows((prev) =>
+            prev.map((r) =>
+              r.code === row.code
+                ? { code: row.code, status: 'loaded', data: json.data as FundRow }
+                : r
+            )
+          );
+        } catch (err) {
+          if (err instanceof DOMException && err.name === 'AbortError') return;
+          const message = err instanceof Error ? err.message : '获取失败';
+          setRows((prev) =>
+            prev.map((r) =>
+              r.code === row.code ? { code: row.code, status: 'error', error: message } : r
+            )
+          );
+        } finally {
+          controllers.delete(row.code);
+        }
+      })();
+    }
+  }, [rows]);
+
   async function handleAdd() {
     const normalized = input.trim();
     if (!/^\d{6}$/.test(normalized)) {
       setError('基金代码必须为6位数字');
       return;
     }
-    if (codes.includes(normalized)) {
+    if (rows.some((r) => r.code === normalized)) {
       setError('该基金已在自选列表中');
       return;
     }
     try {
       await addToWatchlist(normalized);
-      setCodes([normalized, ...codes]);
+      setRows((prev) => [{ code: normalized, status: 'loading' }, ...prev]);
       setInput('');
       setError('');
     } catch (err) {
@@ -83,9 +127,13 @@ export default function FundTable() {
   }
 
   async function handleRemove(code: string) {
+    const controller = controllersRef.current.get(code);
+    controller?.abort();
+    controllersRef.current.delete(code);
+
     try {
       await removeFromWatchlist(code);
-      setCodes(codes.filter((c) => c !== code));
+      setRows((prev) => prev.filter((r) => r.code !== code));
     } catch (err) {
       setError(err instanceof Error ? err.message : '删除失败');
     }
