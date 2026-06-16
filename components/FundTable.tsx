@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getWatchlist, addToWatchlist, removeFromWatchlist } from '@/lib/watchlist-api';
 
@@ -13,8 +13,12 @@ interface FundRow {
   navDate: string;
   estimateTime: string | null;
   lastUpdated: string;
-  error?: boolean;
 }
+
+type Row =
+  | { code: string; status: 'loading' }
+  | { code: string; status: 'loaded'; data: FundRow }
+  | { code: string; status: 'error'; error: string };
 
 function formatTime(iso?: string | null): string {
   if (!iso) return '--';
@@ -30,73 +34,33 @@ function formatTime(iso?: string | null): string {
 
 export default function FundTable() {
   const router = useRouter();
-  const [codes, setCodes] = useState<string[]>([]);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [loadingCodes, setLoadingCodes] = useState(true);
   const [input, setInput] = useState('');
-  const [funds, setFunds] = useState<FundRow[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const controllersRef = useRef<Map<string, AbortController>>(new Map());
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
-        const data = await getWatchlist();
-        setCodes(data);
+        const codes = await getWatchlist();
+        if (cancelled) return;
+        setRows(codes.map((code) => ({ code, status: 'loading' as const })));
       } catch (err) {
-        setError(err instanceof Error ? err.message : '读取自选失败');
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : '读取自选失败');
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoadingCodes(false);
+        }
       }
     })();
-  }, []);
-
-  useEffect(() => {
-    if (codes.length === 0) {
-      setFunds([]);
-      return;
-    }
-
-    let cancelled = false;
-    setLoading(true);
-    setError('');
-
-    Promise.all(
-      codes.map(async (code) => {
-        try {
-          const res = await fetch(`/api/fund/${encodeURIComponent(code)}`);
-          const json = await res.json();
-          if (!json.success) {
-            throw new Error(json.message || '获取失败');
-          }
-          return { ...(json.data as FundRow) };
-        } catch {
-          return {
-            code,
-            name: code,
-            nav: 0,
-            estimatedNav: null,
-            changePercent: null,
-            navDate: '',
-            estimateTime: null,
-            lastUpdated: '',
-            error: true,
-          };
-        }
-      })
-    )
-      .then((rows) => {
-        if (!cancelled) setFunds(rows);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : '请求失败');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
     return () => {
       cancelled = true;
     };
-  }, [codes]);
+  }, []);
 
   async function handleAdd() {
     const normalized = input.trim();
