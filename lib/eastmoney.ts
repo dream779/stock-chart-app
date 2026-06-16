@@ -252,27 +252,28 @@ export async function getFundQuote(code: string): Promise<FundQuoteData> {
     return data;
   }
 
-  // 1) EastMoney's gz endpoint: name, change %, intraday estimate (gsz)
-  const url = `http://fundgz.1234567.com.cn/js/${normalizedCode}.js?rt=${Date.now()}`;
-  const res = await fetch(url, {
-    headers: { Referer: 'http://fund.eastmoney.com/' },
-  });
+  // Fetch gz (name + intraday estimate) and pingzhongdata (latest confirmed
+  // NAV) in parallel — gz's `dwjz` lags ~1 day behind the official NAV, so we
+  // override it with pingzhongdata's latest non-null entry after both return.
+  const [gzResult, confirmed] = await Promise.allSettled([
+    fetch(`http://fundgz.1234567.com.cn/js/${normalizedCode}.js?rt=${Date.now()}`, {
+      headers: { Referer: 'http://fund.eastmoney.com/' },
+    }).then(async (res) => {
+      if (!res.ok) throw new Error(`天天基金接口请求失败: ${res.status}`);
+      return res.text();
+    }),
+    getLatestConfirmedNav(normalizedCode),
+  ]);
 
-  if (!res.ok) {
-    throw new Error(`天天基金接口请求失败: ${res.status}`);
+  if (gzResult.status === 'rejected') {
+    throw new Error(gzResult.reason instanceof Error ? gzResult.reason.message : String(gzResult.reason));
   }
 
-  const text = await res.text();
-  const data = parseFundQuoteResponse(text);
+  const data = parseFundQuoteResponse(gzResult.value);
 
-  // 2) Override `nav` / `navDate` with the latest confirmed NAV from
-  //    pingzhongdata — that endpoint's daily series updates after the fund
-  //    company publishes the official NAV (~8-10pm same day), while the gz
-  //    endpoint's `dwjz` often lags by 1 day for domestic T+0 funds.
-  const confirmed = await getLatestConfirmedNav(normalizedCode);
-  if (confirmed) {
-    data.nav = confirmed.nav;
-    data.navDate = confirmed.date;
+  if (confirmed.status === 'fulfilled' && confirmed.value) {
+    data.nav = confirmed.value.nav;
+    data.navDate = confirmed.value.date;
   }
 
   setCache(cacheKey, data, QUOTE_TTL);

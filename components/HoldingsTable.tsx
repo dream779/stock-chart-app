@@ -54,6 +54,7 @@ export default function HoldingsTable({ holdings, onEdit, onDelete }: HoldingsTa
                 const calcs = calculateHolding(holding);
                 const holdingGainFmt = formatGainMoney(calcs.holdingGain);
                 const isExpanded = expanded === holding.code;
+                const navLoading = holding.nav === undefined;
                 return (
                   <>
                     <tr
@@ -83,15 +84,29 @@ export default function HoldingsTable({ holdings, onEdit, onDelete }: HoldingsTa
                       <td className="px-4 py-3 text-right">
                         {holding.shares.toLocaleString('zh-CN', { maximumFractionDigits: 4 })}
                       </td>
-                      <td className="px-4 py-3 text-right">{formatMoney(calcs.marketValue)}</td>
-                      <td className={`px-4 py-3 text-right font-medium ${holdingGainFmt.colorClass}`}>
-                        {holdingGainFmt.text}
+                      <td className="px-4 py-3 text-right">
+                        {navLoading ? (
+                          <span className="inline-block h-4 w-20 bg-gray-100 rounded animate-pulse" />
+                        ) : (
+                          formatMoney(calcs.marketValue)
+                        )}
                       </td>
-                      <td
-                        className={`px-4 py-3 text-right font-medium ${holdingGainFmt.colorClass}`}
-                      >
-                        {holdingGainFmt.sign}
-                        {calcs.gainRate.toFixed(2)}%
+                      <td className="px-4 py-3 text-right font-medium">
+                        {navLoading ? (
+                          <span className="inline-block h-4 w-20 bg-gray-100 rounded animate-pulse" />
+                        ) : (
+                          <span className={holdingGainFmt.colorClass}>{holdingGainFmt.text}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium">
+                        {navLoading ? (
+                          <span className="inline-block h-4 w-14 bg-gray-100 rounded animate-pulse" />
+                        ) : (
+                          <span className={holdingGainFmt.colorClass}>
+                            {holdingGainFmt.sign}
+                            {calcs.gainRate.toFixed(2)}%
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right">
                         {holding.pendingAmount && holding.pendingAmount > 0 ? (

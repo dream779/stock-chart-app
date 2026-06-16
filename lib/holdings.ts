@@ -60,6 +60,7 @@ export interface SummaryCalcs {
   gainRate: number;
   totalPending: number;
   totalPendingCount: number;
+  hasAnyNav: boolean;
 }
 
 export function calculateSummary(holdings: HoldingWithQuote[]): SummaryCalcs {
@@ -73,6 +74,7 @@ export function calculateSummary(holdings: HoldingWithQuote[]): SummaryCalcs {
   const holdingGain = totalMarketValue - totalCost;
   const gainRate = totalCost > 0 ? (holdingGain / totalCost) * 100 : 0;
   const totalAssets = totalMarketValue + totalPending;
+  const hasAnyNav = holdings.some((h) => h.nav !== undefined);
 
   return {
     totalAssets: Number(totalAssets.toFixed(2)),
@@ -82,5 +84,6 @@ export function calculateSummary(holdings: HoldingWithQuote[]): SummaryCalcs {
     gainRate: Number(gainRate.toFixed(2)),
     totalPending: Number(totalPending.toFixed(2)),
     totalPendingCount,
+    hasAnyNav,
   };
 }

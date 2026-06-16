@@ -18,30 +18,61 @@ export default function HoldingsSummary({ summary }: HoldingsSummaryProps) {
   const formatMoney = (value: number) =>
     `¥${value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+  const dashSkeleton = (
+    <span className="inline-block h-7 w-28 bg-gray-100 rounded animate-pulse align-middle" />
+  );
+
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <div className="bg-white rounded-lg shadow p-4">
         <p className="text-xs text-gray-500 mb-1">总资产</p>
-        <p className="text-xl font-bold text-gray-900">{formatMoney(summary.totalAssets)}</p>
-        <p className="text-xs text-gray-400 mt-1">
-          确认 {formatMoney(summary.totalMarketValue)} + 待确认 {formatMoney(summary.totalPending)}
-        </p>
+        {summary.hasAnyNav ? (
+          <>
+            <p className="text-xl font-bold text-gray-900">{formatMoney(summary.totalAssets)}</p>
+            <p className="text-xs text-gray-400 mt-1">
+              确认 {formatMoney(summary.totalMarketValue)} + 待确认 {formatMoney(summary.totalPending)}
+            </p>
+          </>
+        ) : (
+          <>
+            {dashSkeleton}
+            <p className="text-xs text-gray-400 mt-1">净值加载中…</p>
+          </>
+        )}
       </div>
       <div className="bg-white rounded-lg shadow p-4">
         <p className="text-xs text-gray-500 mb-1">持有收益</p>
-        <p className={`text-xl font-bold ${holdingGainColor}`}>
-          {holdingGainSign}
-          {formatMoney(summary.holdingGain)}
-        </p>
-        <p className="text-xs text-gray-400 mt-1">仅含已确认份额</p>
+        {summary.hasAnyNav ? (
+          <>
+            <p className={`text-xl font-bold ${holdingGainColor}`}>
+              {holdingGainSign}
+              {formatMoney(summary.holdingGain)}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">仅含已确认份额</p>
+          </>
+        ) : (
+          <>
+            {dashSkeleton}
+            <p className="text-xs text-gray-400 mt-1">净值加载中…</p>
+          </>
+        )}
       </div>
       <div className="bg-white rounded-lg shadow p-4">
         <p className="text-xs text-gray-500 mb-1">持有收益率</p>
-        <p className={`text-xl font-bold ${gainRateColor}`}>
-          {gainRateSign}
-          {summary.gainRate.toFixed(2)}%
-        </p>
-        <p className="text-xs text-gray-400 mt-1">仅含已确认份额</p>
+        {summary.hasAnyNav ? (
+          <>
+            <p className={`text-xl font-bold ${gainRateColor}`}>
+              {gainRateSign}
+              {summary.gainRate.toFixed(2)}%
+            </p>
+            <p className="text-xs text-gray-400 mt-1">仅含已确认份额</p>
+          </>
+        ) : (
+          <>
+            {dashSkeleton}
+            <p className="text-xs text-gray-400 mt-1">净值加载中…</p>
+          </>
+        )}
       </div>
       <div className="bg-white rounded-lg shadow p-4">
         <p className="text-xs text-gray-500 mb-1">待确认金额</p>
