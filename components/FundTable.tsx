@@ -229,7 +229,6 @@ export default function FundTable() {
                   <th className="px-4 py-3">基金名称</th>
                   <th className="px-4 py-3">代码</th>
                   <th className="px-4 py-3">单位净值</th>
-                  <th className="px-4 py-3">估算净值</th>
                   <th className="px-4 py-3">估算涨跌幅</th>
                   <th className="px-4 py-3">更新时间</th>
                   <th className="px-4 py-3 text-right">操作</th>
@@ -240,7 +239,7 @@ export default function FundTable() {
                   Array.from({ length: 2 }).map((_, i) => (
                     <tr key={`init-${i}`}>
                       <td className="w-8"></td>
-                      {Array.from({ length: 7 }).map((_, j) => (
+                      {Array.from({ length: 6 }).map((_, j) => (
                         <td key={j} className="px-4 py-3">
                           <div className="h-4 bg-gray-100 rounded animate-pulse" />
                         </td>
@@ -249,7 +248,7 @@ export default function FundTable() {
                   ))
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
                       暂无自选基金，请输入基金代码添加
                     </td>
                   </tr>
@@ -322,7 +321,7 @@ function SortableRow({
       {row.status === 'loading' && (
         <>
           <td className="px-4 py-3 text-gray-400 font-mono text-xs">{row.code}</td>
-          {Array.from({ length: 5 }).map((_, j) => (
+          {Array.from({ length: 4 }).map((_, j) => (
             <td key={j} className="px-4 py-3">
               <div className="h-4 bg-gray-100 rounded animate-pulse" />
             </td>
@@ -333,7 +332,7 @@ function SortableRow({
       {row.status === 'error' && (
         <>
           <td
-            colSpan={6}
+            colSpan={5}
             onClick={onNavigate}
             className="px-4 py-3 font-medium text-gray-900 max-w-[200px] truncate cursor-pointer"
           >
@@ -390,9 +389,6 @@ function LoadedRowCells({
       </td>
       <td onClick={onNavigate} className="px-4 py-3 cursor-pointer">
         {row.nav > 0 ? row.nav.toFixed(4) : '--'}
-      </td>
-      <td onClick={onNavigate} className="px-4 py-3 cursor-pointer">
-        {row.estimatedNav !== null ? row.estimatedNav.toFixed(4) : '--'}
       </td>
       <td onClick={onNavigate} className={`px-4 py-3 font-medium cursor-pointer ${colorClass}`}>
         {row.changePercent !== null ? (
