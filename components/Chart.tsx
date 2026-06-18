@@ -5,7 +5,6 @@ import { createChart, ColorType, IChartApi, ISeriesApi, AreaData } from 'lightwe
 
 interface ChartProps {
   data: { time: string; value: number }[];
-  title?: string;
   stats?: {
     currentValue: number;
     changePercent: number;
@@ -13,11 +12,7 @@ interface ChartProps {
   className?: string;
 }
 
-function formatNumber(num: number): string {
-  return num.toLocaleString('en-US', { maximumFractionDigits: 2 });
-}
-
-export default function Chart({ data, title, stats, className }: ChartProps) {
+export default function Chart({ data, stats, className }: ChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Area'> | null>(null);
@@ -97,24 +92,18 @@ export default function Chart({ data, title, stats, className }: ChartProps) {
 
   return (
     <div className={`flex flex-col ${className || 'h-full'}`}>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-        {title && <h3 className="text-base font-semibold text-gray-900">{title}</h3>}
-        {stats && (
-          <div className="flex items-baseline gap-2">
-            <span className="text-xl font-bold text-gray-900">
-              {formatNumber(stats.currentValue)}
-            </span>
-            <span
-              className={`text-sm font-medium px-2 py-0.5 rounded ${
-                isPositive ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
-              }`}
-            >
-              {isPositive ? '+' : ''}
-              {stats.changePercent.toFixed(2)}%
-            </span>
-          </div>
-        )}
-      </div>
+      {stats && (
+        <div className="flex justify-end mb-2">
+          <span
+            className={`text-sm font-medium px-2 py-0.5 rounded ${
+              isPositive ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
+            }`}
+          >
+            {isPositive ? '+' : ''}
+            {stats.changePercent.toFixed(2)}%
+          </span>
+        </div>
+      )}
       <div ref={chartContainerRef} className="flex-1 min-h-[300px]" />
     </div>
   );

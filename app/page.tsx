@@ -127,9 +127,6 @@ export default function Home() {
             <div className="flex-1 min-h-0">
               <Chart
                 data={histories[selectedSymbol] || []}
-                title={`${INDICES.find((i) => i.symbol === selectedSymbol)?.name} - ${
-                  RANGES.find((r) => r.value === range)?.label
-                }`}
                 stats={stats[selectedSymbol]}
                 className="h-full"
               />
