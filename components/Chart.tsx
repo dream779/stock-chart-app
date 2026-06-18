@@ -54,6 +54,8 @@ export default function Chart({ data, title, stats, className }: ChartProps) {
       topColor: 'rgba(37, 99, 235, 0.3)',
       bottomColor: 'rgba(37, 99, 235, 0.05)',
       lineWidth: 2,
+      lastValueVisible: false,
+      priceLineVisible: false,
     });
 
     chartRef.current = chart;

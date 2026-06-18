@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getWatchlist, addToWatchlist, removeFromWatchlist } from '@/lib/watchlist-api';
+import {
+  getWatchlist,
+  addToWatchlist,
+  removeFromWatchlist,
+  reorderWatchlist,
+} from '@/lib/watchlist-api';
 
 interface FundRow {
   code: string;
@@ -19,6 +24,8 @@ type Row =
   | { code: string; status: 'loading' }
   | { code: string; status: 'loaded'; data: FundRow }
   | { code: string; status: 'error'; error: string };
+
+type DropPosition = 'before' | 'after';
 
 function formatTime(iso?: string | null): string {
   if (!iso) return '--';
@@ -39,6 +46,11 @@ export default function FundTable() {
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
   const controllersRef = useRef<Map<string, AbortController>>(new Map());
+
+  const [draggingCode, setDraggingCode] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ code: string; position: DropPosition } | null>(
+    null
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -143,6 +155,233 @@ export default function FundTable() {
     if (e.key === 'Enter') handleAdd();
   }
 
+  function reorder(codes: string[]) {
+    setRows((prev) => {
+      const map = new Map(prev.map((r) => [r.code, r]));
+      const next: Row[] = [];
+      for (const code of codes) {
+        const row = map.get(code);
+        if (row) next.push(row);
+      }
+      for (const r of prev) {
+        if (!codes.includes(r.code)) next.push(r);
+      }
+      return next;
+    });
+  }
+
+  async function commitOrder(newOrder: string[]) {
+    const previous = rows.map((r) => r.code);
+    reorder(newOrder);
+    try {
+      await reorderWatchlist(newOrder);
+    } catch (err) {
+      reorder(previous);
+      setError(err instanceof Error ? err.message : '保存排序失败');
+    }
+  }
+
+  function handleDragStart(e: React.DragEvent<HTMLTableCellElement>, code: string) {
+    e.stopPropagation();
+    setDraggingCode(code);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', code);
+  }
+
+  function handleDragEnd() {
+    setDraggingCode(null);
+    setDropTarget(null);
+  }
+
+  function handleDragOver(e: React.DragEvent<HTMLTableRowElement>, code: string) {
+    if (!draggingCode || draggingCode === code) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+    const position: DropPosition = e.clientY < midpoint ? 'before' : 'after';
+    if (dropTarget?.code !== code || dropTarget.position !== position) {
+      setDropTarget({ code, position });
+    }
+  }
+
+  function handleDragLeave(e: React.DragEvent<HTMLTableRowElement>) {
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLTableRowElement>, targetCode: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    const sourceCode = draggingCode ?? e.dataTransfer.getData('text/plain');
+    if (!sourceCode || sourceCode === targetCode) {
+      handleDragEnd();
+      return;
+    }
+    const position = dropTarget?.code === targetCode ? dropTarget.position : 'before';
+    const current = rows.map((r) => r.code);
+    const next = current.filter((c) => c !== sourceCode);
+    const targetIdx = next.indexOf(targetCode);
+    const insertAt = position === 'before' ? targetIdx : targetIdx + 1;
+    next.splice(insertAt, 0, sourceCode);
+    handleDragEnd();
+    void commitOrder(next);
+  }
+
+  function handleRowDragOver(e: React.DragEvent<HTMLTableSectionElement>) {
+    e.preventDefault();
+  }
+
+  function renderRow(row: Row) {
+    const isDragging = draggingCode === row.code;
+    const dropBefore = dropTarget?.code === row.code && dropTarget.position === 'before';
+    const dropAfter = dropTarget?.code === row.code && dropTarget.position === 'after';
+
+    const rowBaseClass =
+      'hover:bg-gray-50 transition relative ' +
+      (isDragging ? 'opacity-40 ' : '') +
+      (dropBefore ? ' border-t-2 border-blue-500 ' : '') +
+      (dropAfter ? ' border-b-2 border-blue-500 ' : '');
+
+    if (row.status === 'loading') {
+      return (
+        <tr
+          key={row.code}
+          onDragOver={(e) => handleDragOver(e, row.code)}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => handleDrop(e, row.code)}
+          className={rowBaseClass}
+        >
+          <td
+            draggable
+            onDragStart={(e) => handleDragStart(e, row.code)}
+            onDragEnd={handleDragEnd}
+            onClick={(e) => e.stopPropagation()}
+            className="px-2 py-3 text-gray-300 cursor-grab active:cursor-grabbing select-none"
+            title="拖动排序"
+          >
+            <GripIcon />
+          </td>
+          <td
+            onClick={() => router.push(`/fund/${row.code}`)}
+            className="px-4 py-3 text-gray-400 font-mono text-xs cursor-pointer"
+          >
+            {row.code}
+          </td>
+          {Array.from({ length: 5 }).map((_, j) => (
+            <td key={j} className="px-4 py-3">
+              <div className="h-4 bg-gray-100 rounded animate-pulse" />
+            </td>
+          ))}
+          <td className="px-4 py-3 text-right text-gray-300">—</td>
+        </tr>
+      );
+    }
+
+    if (row.status === 'error') {
+      return (
+        <tr
+          key={row.code}
+          onDragOver={(e) => handleDragOver(e, row.code)}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => handleDrop(e, row.code)}
+          className={rowBaseClass + ' cursor-pointer'}
+        >
+          <td
+            draggable
+            onDragStart={(e) => handleDragStart(e, row.code)}
+            onDragEnd={handleDragEnd}
+            onClick={(e) => e.stopPropagation()}
+            className="px-2 py-3 text-gray-300 cursor-grab active:cursor-grabbing select-none"
+            title="拖动排序"
+          >
+            <GripIcon />
+          </td>
+          <td
+            colSpan={6}
+            onClick={() => router.push(`/fund/${row.code}`)}
+            className="px-4 py-3 font-medium text-gray-900 max-w-[200px] truncate"
+          >
+            {row.code}
+            <span className="ml-2 text-xs text-red-500">
+              (获取失败{row.error ? `: ${row.error}` : ''})
+            </span>
+          </td>
+          <td className="px-4 py-3 text-right">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRemove(row.code);
+              }}
+              className="text-gray-400 hover:text-red-600 transition"
+              title="删除"
+            >
+              ×
+            </button>
+          </td>
+        </tr>
+      );
+    }
+
+    const fund = row.data;
+    const isPositive = fund.changePercent !== null ? fund.changePercent >= 0 : true;
+    const colorClass = isPositive ? 'text-red-600' : 'text-green-600';
+
+    return (
+      <tr
+        key={row.code}
+        onDragOver={(e) => handleDragOver(e, row.code)}
+        onDragLeave={handleDragLeave}
+        onDrop={(e) => handleDrop(e, row.code)}
+        onClick={() => router.push(`/fund/${fund.code}`)}
+        className={rowBaseClass + ' cursor-pointer'}
+      >
+        <td
+          draggable
+          onDragStart={(e) => handleDragStart(e, row.code)}
+          onDragEnd={handleDragEnd}
+          onClick={(e) => e.stopPropagation()}
+          className="px-2 py-3 text-gray-300 cursor-grab active:cursor-grabbing select-none"
+          title="拖动排序"
+        >
+          <GripIcon />
+        </td>
+        <td className="px-4 py-3 font-medium text-gray-900 max-w-[200px] truncate">
+          {fund.name || fund.code}
+        </td>
+        <td className="px-4 py-3 text-gray-500">{fund.code}</td>
+        <td className="px-4 py-3">{fund.nav > 0 ? fund.nav.toFixed(4) : '--'}</td>
+        <td className="px-4 py-3">
+          {fund.estimatedNav !== null ? fund.estimatedNav.toFixed(4) : '--'}
+        </td>
+        <td className={`px-4 py-3 font-medium ${colorClass}`}>
+          {fund.changePercent !== null ? (
+            <>
+              {isPositive ? '+' : ''}
+              {fund.changePercent.toFixed(2)}%
+            </>
+          ) : (
+            '--'
+          )}
+        </td>
+        <td className="px-4 py-3 text-gray-500 text-xs">
+          {fund.estimateTime || formatTime(fund.lastUpdated)}
+        </td>
+        <td className="px-4 py-3 text-right">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRemove(fund.code);
+            }}
+            className="text-gray-400 hover:text-red-600 transition"
+            title="删除"
+          >
+            ×
+          </button>
+        </td>
+      </tr>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-2">
@@ -176,6 +415,7 @@ export default function FundTable() {
           <table className="w-full text-sm text-left">
             <thead className="bg-gray-50 text-gray-600 font-medium">
               <tr>
+                <th className="w-8"></th>
                 <th className="px-4 py-3">基金名称</th>
                 <th className="px-4 py-3">代码</th>
                 <th className="px-4 py-3">单位净值</th>
@@ -185,10 +425,11 @@ export default function FundTable() {
                 <th className="px-4 py-3 text-right">操作</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-100" onDragOver={handleRowDragOver}>
               {loadingCodes && rows.length === 0 ? (
                 Array.from({ length: 2 }).map((_, i) => (
                   <tr key={`init-${i}`}>
+                    <td className="w-8"></td>
                     {Array.from({ length: 7 }).map((_, j) => (
                       <td key={j} className="px-4 py-3">
                         <div className="h-4 bg-gray-100 rounded animate-pulse" />
@@ -198,111 +439,38 @@ export default function FundTable() {
                 ))
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                     暂无自选基金，请输入基金代码添加
                   </td>
                 </tr>
               ) : (
-                rows.map((row) => {
-                  if (row.status === 'loading') {
-                    return (
-                      <tr key={row.code} className="hover:bg-gray-50 cursor-pointer transition">
-                        <td
-                          onClick={() => router.push(`/fund/${row.code}`)}
-                          className="px-4 py-3 text-gray-400 font-mono text-xs"
-                        >
-                          {row.code}
-                        </td>
-                        {Array.from({ length: 5 }).map((_, j) => (
-                          <td key={j} className="px-4 py-3">
-                            <div className="h-4 bg-gray-100 rounded animate-pulse" />
-                          </td>
-                        ))}
-                        <td className="px-4 py-3 text-right text-gray-300">—</td>
-                      </tr>
-                    );
-                  }
-
-                  if (row.status === 'error') {
-                    return (
-                      <tr key={row.code} className="hover:bg-gray-50 cursor-pointer transition">
-                        <td
-                          colSpan={6}
-                          onClick={() => router.push(`/fund/${row.code}`)}
-                          className="px-4 py-3 font-medium text-gray-900 max-w-[200px] truncate"
-                        >
-                          {row.code}
-                          <span className="ml-2 text-xs text-red-500">
-                            (获取失败{row.error ? `: ${row.error}` : ''})
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemove(row.code);
-                            }}
-                            className="text-gray-400 hover:text-red-600 transition"
-                            title="删除"
-                          >
-                            ×
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  }
-
-                  const fund = row.data;
-                  const isPositive = fund.changePercent !== null ? fund.changePercent >= 0 : true;
-                  const colorClass = isPositive ? 'text-red-600' : 'text-green-600';
-
-                  return (
-                    <tr
-                      key={row.code}
-                      onClick={() => router.push(`/fund/${fund.code}`)}
-                      className="hover:bg-gray-50 cursor-pointer transition"
-                    >
-                      <td className="px-4 py-3 font-medium text-gray-900 max-w-[200px] truncate">
-                        {fund.name || fund.code}
-                      </td>
-                      <td className="px-4 py-3 text-gray-500">{fund.code}</td>
-                      <td className="px-4 py-3">{fund.nav > 0 ? fund.nav.toFixed(4) : '--'}</td>
-                      <td className="px-4 py-3">
-                        {fund.estimatedNav !== null ? fund.estimatedNav.toFixed(4) : '--'}
-                      </td>
-                      <td className={`px-4 py-3 font-medium ${colorClass}`}>
-                        {fund.changePercent !== null ? (
-                          <>
-                            {isPositive ? '+' : ''}
-                            {fund.changePercent.toFixed(2)}%
-                          </>
-                        ) : (
-                          '--'
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-gray-500 text-xs">
-                        {fund.estimateTime || formatTime(fund.lastUpdated)}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemove(fund.code);
-                          }}
-                          className="text-gray-400 hover:text-red-600 transition"
-                          title="删除"
-                        >
-                          ×
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
+                rows.map((row) => renderRow(row))
               )}
             </tbody>
           </table>
         </div>
       </div>
+      <p className="text-xs text-gray-500">按住行首的 ⋮⋮ 图标可拖动调整顺序。</p>
     </div>
+  );
+}
+
+function GripIcon() {
+  return (
+    <svg
+      width="14"
+      height="20"
+      viewBox="0 0 14 20"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <circle cx="3" cy="4" r="1.5" />
+      <circle cx="3" cy="10" r="1.5" />
+      <circle cx="3" cy="16" r="1.5" />
+      <circle cx="11" cy="4" r="1.5" />
+      <circle cx="11" cy="10" r="1.5" />
+      <circle cx="11" cy="16" r="1.5" />
+    </svg>
   );
 }

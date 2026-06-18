@@ -21,6 +21,18 @@ export async function addToWatchlist(code: string): Promise<void> {
   }
 }
 
+export async function reorderWatchlist(codes: string[]): Promise<void> {
+  const res = await fetch(BASE, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ codes }),
+  });
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.message ?? '保存排序失败');
+  }
+}
+
 export async function removeFromWatchlist(code: string): Promise<void> {
   const res = await fetch(`${BASE}?code=${encodeURIComponent(code)}`, {
     method: 'DELETE',
