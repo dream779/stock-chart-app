@@ -13,10 +13,6 @@ interface ChartProps {
   className?: string;
 }
 
-function formatNumber(num: number): string {
-  return num.toLocaleString('en-US', { maximumFractionDigits: 2 });
-}
-
 export default function Chart({ data, title, stats, className }: ChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -54,8 +50,6 @@ export default function Chart({ data, title, stats, className }: ChartProps) {
       topColor: 'rgba(37, 99, 235, 0.3)',
       bottomColor: 'rgba(37, 99, 235, 0.05)',
       lineWidth: 2,
-      lastValueVisible: false,
-      priceLineVisible: false,
     });
 
     chartRef.current = chart;
@@ -103,9 +97,6 @@ export default function Chart({ data, title, stats, className }: ChartProps) {
         {title && <h3 className="text-base font-semibold text-gray-900">{title}</h3>}
         {stats && (
           <div className="flex items-baseline gap-2">
-            <span className="text-xl font-bold text-gray-900">
-              {formatNumber(stats.currentValue)}
-            </span>
             <span
               className={`text-sm font-medium px-2 py-0.5 rounded ${
                 isPositive ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
