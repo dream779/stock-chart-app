@@ -150,7 +150,7 @@ export default function ReturnHistoryChart({ code, className }: ReturnHistoryCha
         <div ref={chartContainerRef} className="w-full h-[300px]" />
       )}
       <p className="text-xs text-gray-500 mt-2">
-        Y 轴单位：元（每日结算后的累计持有收益）。数据持久化在服务端，2 年后仍可复盘。
+        Y 轴单位：元（每日结算后的累计持有收益）。
       </p>
     </div>
   );

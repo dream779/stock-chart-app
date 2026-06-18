@@ -161,8 +161,8 @@ export default function HoldingForm({
     : '';
 
   const inputClass =
-    'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600';
-  const readOnlyClass = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-100 text-gray-500 cursor-not-allowed';
+    'w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600';
+  const readOnlyClass = 'w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-gray-100 text-gray-500 cursor-not-allowed';
 
   return (
     <div
@@ -179,13 +179,13 @@ export default function HoldingForm({
         aria-modal="true"
         aria-labelledby="holding-form-title"
       >
-        <div className="p-4 border-b border-gray-100">
+        <div className="p-3 border-b border-gray-100">
           <h2 id="holding-form-title" className="text-lg font-semibold text-gray-900">
             {isEdit ? '编辑持仓' : '添加持仓'}
           </h2>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+        <form onSubmit={handleSubmit} className="p-3 space-y-3">
           {error && (
             <div
               className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm"
@@ -268,7 +268,7 @@ export default function HoldingForm({
           </div>
 
           {hasExistingPlan && (
-            <p className="text-xs text-gray-500 -mt-2">
+            <p className="text-xs text-gray-500 -mt-1">
               {readOnlyHint}
             </p>
           )}
@@ -279,17 +279,17 @@ export default function HoldingForm({
             pendingCount={pendingCount}
           />
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-1">
             <button
               type="button"
               onClick={onCancel}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition"
+              className="flex-1 px-4 py-1.5 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition"
             >
               取消
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition"
+              className="flex-1 px-4 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition"
             >
               保存
             </button>

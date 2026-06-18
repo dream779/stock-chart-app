@@ -29,6 +29,7 @@ export default function Chart({ data, title, stats, className }: ChartProps) {
       layout: {
         background: { type: ColorType.Solid, color: '#ffffff' },
         textColor: '#333333',
+        attributionLogo: false,
       },
       grid: {
         vertLines: { color: '#f0f0f0' },

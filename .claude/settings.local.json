@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(curl -s -X POST http://localhost:3000/api/dca/settle -H 'content-type: application/json' -d '{\"code\":\"017641\"}')",
+      "Bash(curl -s http://localhost:3000/api/dca)",
+      "Bash(curl -s http://localhost:3000/api/holdings)",
+      "Bash(curl -s -X POST http://localhost:3000/api/holdings -H 'content-type: application/json' -d '{\"code\":\"017641\",\"name\":\"广发中证光伏产业指数A\",\"shares\":10000,\"costPrice\":0.80}')",
+      "Bash(curl -s -X POST http://localhost:3000/api/dca -H 'content-type: application/json' -d '{\"code\":\"017641\",\"amountPerPeriod\":100,\"frequency\":\"daily\",\"startDate\":\"2026-06-11\",\"confirmationDays\":2}')",
+      "Bash(curl -s \"http://localhost:3000/api/dca/returns?code=017641&range=1m\")",
+      "Bash(curl -s -X DELETE \"http://localhost:3000/api/dca?code=017641\")",
+      "Bash(curl -s -X POST http://localhost:3000/api/dca -H 'Content-Type: application/json' -d '{ *)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}

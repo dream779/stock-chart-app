@@ -33,7 +33,7 @@ export default function DcaPlanSection({ value, onChange, pendingCount }: DcaPla
   }
 
   return (
-    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 space-y-3">
+    <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 space-y-2">
       <label className="flex items-center gap-2 cursor-pointer">
         <input
           type="checkbox"
@@ -62,7 +62,7 @@ export default function DcaPlanSection({ value, onChange, pendingCount }: DcaPla
                 value={value.amountPerPeriod}
                 onChange={(e) => patch({ amountPerPeriod: e.target.value })}
                 placeholder="100.00"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               />
             </div>
             <div>
@@ -73,7 +73,7 @@ export default function DcaPlanSection({ value, onChange, pendingCount }: DcaPla
                 type="date"
                 value={value.startDate}
                 onChange={(e) => patch({ startDate: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               />
             </div>
           </div>
@@ -86,7 +86,7 @@ export default function DcaPlanSection({ value, onChange, pendingCount }: DcaPla
                   key={opt.value}
                   type="button"
                   onClick={() => patch({ frequency: opt.value })}
-                  className={`px-3 py-2 text-sm rounded-lg border transition ${
+                  className={`px-3 py-1.5 text-sm rounded-lg border transition ${
                     value.frequency === opt.value
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
@@ -107,7 +107,7 @@ export default function DcaPlanSection({ value, onChange, pendingCount }: DcaPla
                   key={opt.value}
                   type="button"
                   onClick={() => patch({ confirmationDays: opt.value })}
-                  className={`px-3 py-2 text-sm rounded-lg border transition ${
+                  className={`px-3 py-1.5 text-sm rounded-lg border transition ${
                     value.confirmationDays === opt.value
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
@@ -118,7 +118,7 @@ export default function DcaPlanSection({ value, onChange, pendingCount }: DcaPla
                 </button>
               ))}
             </div>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 mt-0.5">
               大多数场外基金 T+2 确认，部分货币 / QDII 基金 T+1
             </p>
           </div>
