@@ -13,13 +13,17 @@ import {
   saveDcaPlan,
   deleteDcaPlan,
   settleDcaCode,
+  snapshotDcaCode,
+  getTodayGains,
   type DcaPlan,
+  type TodayGainInfo,
 } from '@/lib/dca-api';
 
 export default function HoldingsPage() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [plans, setPlans] = useState<Record<string, DcaPlan>>({});
   const [quotes, setQuotes] = useState<Record<string, FundQuoteData>>({});
+  const [todayGains, setTodayGains] = useState<Record<string, TodayGainInfo>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [banner, setBanner] = useState<{ settled: number; totalSettled: number } | null>(null);
@@ -102,6 +106,13 @@ export default function HoldingsPage() {
       await loadPlans();
       setTimeout(() => setBanner(null), 6000);
     }
+    await Promise.allSettled(holdings.map((h) => snapshotDcaCode(h.code)));
+    try {
+      const gains = await getTodayGains(holdings.map((h) => h.code));
+      setTodayGains(gains);
+    } catch {
+      // Non-blocking: todayGains will stay empty and UI will show "未更新"
+    }
   }
 
   useEffect(() => {
@@ -125,6 +136,7 @@ export default function HoldingsPage() {
       hasDcaPlan: Boolean(plan),
       dcaFrequency: plan?.frequency,
       dcaConfirmationDays: plan?.confirmationDays,
+      todayGain: todayGains[holding.code] ?? { updated: false, todayGain: null },
     };
   });
 

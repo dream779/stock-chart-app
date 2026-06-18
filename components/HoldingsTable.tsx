@@ -44,6 +44,7 @@ export default function HoldingsTable({ holdings, onEdit, onDelete }: HoldingsTa
                 <th className="px-4 py-3 text-right">确认市值</th>
                 <th className="px-4 py-3 text-right">持有收益</th>
                 <th className="px-4 py-3 text-right">收益率</th>
+                <th className="px-4 py-3 text-right">今日收益</th>
                 <th className="px-4 py-3 text-right">待确认</th>
                 <th className="px-4 py-3 text-right">操作</th>
               </tr>
@@ -100,6 +101,26 @@ export default function HoldingsTable({ holdings, onEdit, onDelete }: HoldingsTa
                           </span>
                         )}
                       </td>
+                      <td className="px-4 py-3 text-right font-medium">
+                        {holding.todayGain?.updated && holding.todayGain.todayGain !== null ? (
+                          (() => {
+                            const v = holding.todayGain.todayGain;
+                            const isPositive = v >= 0;
+                            const colorClass = isPositive ? 'text-red-600' : 'text-green-600';
+                            const sign = isPositive ? '+' : '';
+                            return (
+                              <span className={colorClass}>
+                                {sign}
+                                {formatMoney(v)}
+                              </span>
+                            );
+                          })()
+                        ) : (
+                          <span className="inline-block px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded">
+                            未更新
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-right">
                         {holding.pendingAmount && holding.pendingAmount > 0 ? (
                           <div className="flex flex-col items-end">
@@ -139,7 +160,7 @@ export default function HoldingsTable({ holdings, onEdit, onDelete }: HoldingsTa
                     </tr>
                     {isExpanded && (
                       <tr key={`${holding.code}-expanded`} className="bg-gray-50">
-                        <td colSpan={6} className="px-4 py-3">
+                        <td colSpan={7} className="px-4 py-3">
                           <ReturnHistoryChart code={holding.code} />
                         </td>
                       </tr>
