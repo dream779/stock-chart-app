@@ -149,13 +149,7 @@ export default function ReturnHistoryChart({ code, className }: ReturnHistoryCha
       ) : (
         <div ref={chartContainerRef} className="w-full h-[300px]" />
       )}
-<<<<<<< HEAD
-      <p className="text-xs text-gray-500 mt-2">
-        Y 轴单位：元（每日结算后的累计持有收益）。
-      </p>
-=======
       <p className="text-xs text-gray-500 mt-2">Y 轴单位：元（每日结算后的累计持有收益）。</p>
->>>>>>> e2995ef8b2084e28c2d2a64784595f399000f116
     </div>
   );
 }
