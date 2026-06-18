@@ -144,14 +144,18 @@ export default function ReturnHistoryChart({ code, className }: ReturnHistoryCha
         </div>
       ) : data.length === 0 ? (
         <div className="h-[300px] flex items-center justify-center text-gray-400 text-sm">
-          还没有数据。每天打开「持仓收益」页面会写入一条快照
+          还没有数据。持仓存在 + 当日 NAV 已公布 就会写入一条快照
         </div>
       ) : (
         <div ref={chartContainerRef} className="w-full h-[300px]" />
       )}
+<<<<<<< HEAD
       <p className="text-xs text-gray-500 mt-2">
         Y 轴单位：元（每日结算后的累计持有收益）。
       </p>
+=======
+      <p className="text-xs text-gray-500 mt-2">Y 轴单位：元（每日结算后的累计持有收益）。</p>
+>>>>>>> e2995ef8b2084e28c2d2a64784595f399000f116
     </div>
   );
 }

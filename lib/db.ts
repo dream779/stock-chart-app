@@ -19,10 +19,27 @@ export async function ensureSchema(): Promise<void> {
     `;
     await sql`
       CREATE TABLE IF NOT EXISTS watchlist (
-        code     TEXT PRIMARY KEY,
-        added_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        code       TEXT PRIMARY KEY,
+        added_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        sort_order INTEGER NOT NULL DEFAULT 0
       );
     `;
+    await sql`ALTER TABLE watchlist ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0`;
+    const { rows: sortState } = await sql<{ all_zero: boolean }>`
+      SELECT COALESCE(bool_and(sort_order = 0), true) AS all_zero
+      FROM watchlist
+    `;
+    if (sortState[0]?.all_zero) {
+      await sql`
+        UPDATE watchlist
+        SET sort_order = sub.rn
+        FROM (
+          SELECT code, ROW_NUMBER() OVER (ORDER BY added_at DESC) AS rn
+          FROM watchlist
+        ) sub
+        WHERE watchlist.code = sub.code
+      `;
+    }
     await sql`
       CREATE TABLE IF NOT EXISTS dca_plans (
         id                BIGSERIAL PRIMARY KEY,

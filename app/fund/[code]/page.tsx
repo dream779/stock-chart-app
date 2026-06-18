@@ -157,7 +157,6 @@ export default function FundDetailPage({ params }: FundDetailPageProps) {
             <div className="flex-1 min-h-0">
               <Chart
                 data={history}
-                title={`${quote?.name || code} - ${RANGES.find((r) => r.value === range)?.label}`}
                 stats={stats}
                 className="h-full"
               />

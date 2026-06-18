@@ -9,11 +9,14 @@ interface HoldingsSummaryProps {
 export default function HoldingsSummary({ summary }: HoldingsSummaryProps) {
   const holdingGainPositive = summary.holdingGain >= 0;
   const gainRatePositive = summary.gainRate >= 0;
+  const todayGainPositive = summary.totalTodayGain >= 0;
 
   const holdingGainColor = holdingGainPositive ? 'text-red-600' : 'text-green-600';
   const gainRateColor = gainRatePositive ? 'text-red-600' : 'text-green-600';
+  const todayGainColor = todayGainPositive ? 'text-red-600' : 'text-green-600';
   const holdingGainSign = holdingGainPositive ? '+' : '';
   const gainRateSign = gainRatePositive ? '+' : '';
+  const todayGainSign = todayGainPositive ? '+' : '';
 
   const formatMoney = (value: number) =>
     `¥${value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -75,9 +78,23 @@ export default function HoldingsSummary({ summary }: HoldingsSummaryProps) {
         )}
       </div>
       <div className="bg-white rounded-lg shadow p-4">
-        <p className="text-xs text-gray-500 mb-1">待确认金额</p>
-        <p className="text-xl font-bold text-amber-600">{formatMoney(summary.totalPending)}</p>
-        <p className="text-xs text-gray-400 mt-1">{summary.totalPendingCount} 期待确认</p>
+        <p className="text-xs text-gray-500 mb-1">今日收益</p>
+        {summary.hasAnyTodayGain ? (
+          <>
+            <p className={`text-xl font-bold ${todayGainColor}`}>
+              {todayGainSign}
+              {formatMoney(summary.totalTodayGain)}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">截至今日收盘</p>
+          </>
+        ) : (
+          <>
+            <span className="inline-block px-2 py-0.5 text-xs bg-gray-100 text-gray-500 rounded">
+              未更新
+            </span>
+            <p className="text-xs text-gray-400 mt-1">今日 NAV 公布后更新</p>
+          </>
+        )}
       </div>
     </div>
   );

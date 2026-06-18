@@ -74,3 +74,42 @@ export async function settleDcaCode(code: string): Promise<SettleResult> {
   }
   return json.data as SettleResult;
 }
+
+export interface SnapshotResult {
+  written: boolean;
+  reason?: 'no_quote';
+}
+
+export async function snapshotDcaCode(code: string): Promise<SnapshotResult> {
+  const res = await fetch(`${BASE}/snapshot`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ code }),
+  });
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.message ?? '写入收益快照失败');
+  }
+  return json.data as SnapshotResult;
+}
+
+export interface TodayGainInfo {
+  updated: boolean;
+  todayGain: number | null;
+}
+
+export async function getTodayGains(
+  codes: string[]
+): Promise<Record<string, TodayGainInfo>> {
+  if (codes.length === 0) return {};
+  const res = await fetch(`${BASE}/today-gain`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ codes }),
+  });
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.message ?? '读取今日收益失败');
+  }
+  return json.data as Record<string, TodayGainInfo>;
+}

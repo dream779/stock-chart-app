@@ -17,6 +17,7 @@ export interface HoldingWithQuote extends Holding {
   hasDcaPlan?: boolean;
   dcaFrequency?: 'daily' | 'weekly' | 'monthly';
   dcaConfirmationDays?: number;
+  todayGain?: { updated: boolean; todayGain: number | null };
 }
 
 export interface HoldingCalcs {
@@ -61,6 +62,8 @@ export interface SummaryCalcs {
   totalPending: number;
   totalPendingCount: number;
   hasAnyNav: boolean;
+  totalTodayGain: number;
+  hasAnyTodayGain: boolean;
 }
 
 export function calculateSummary(holdings: HoldingWithQuote[]): SummaryCalcs {
@@ -76,6 +79,13 @@ export function calculateSummary(holdings: HoldingWithQuote[]): SummaryCalcs {
   const totalAssets = totalMarketValue + totalPending;
   const hasAnyNav = holdings.some((h) => h.nav !== undefined);
 
+  const totalTodayGain = holdings.reduce(
+    (sum, h) =>
+      sum + (h.todayGain?.updated && h.todayGain.todayGain !== null ? h.todayGain.todayGain : 0),
+    0
+  );
+  const hasAnyTodayGain = holdings.some((h) => h.todayGain?.updated);
+
   return {
     totalAssets: Number(totalAssets.toFixed(2)),
     totalCost: Number(totalCost.toFixed(2)),
@@ -85,5 +95,7 @@ export function calculateSummary(holdings: HoldingWithQuote[]): SummaryCalcs {
     totalPending: Number(totalPending.toFixed(2)),
     totalPendingCount,
     hasAnyNav,
+    totalTodayGain: Number(totalTodayGain.toFixed(2)),
+    hasAnyTodayGain,
   };
 }

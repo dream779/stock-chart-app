@@ -393,6 +393,50 @@ export async function writeDailySnapshot(
   `;
 }
 
+export interface TodayGainInfo {
+  updated: boolean;
+  todayGain: number | null;
+}
+
+export async function getTodayGainsForCodes(
+  codes: string[],
+  today: string
+): Promise<Record<string, TodayGainInfo>> {
+  const result: Record<string, TodayGainInfo> = {};
+  for (const code of codes) {
+    result[code] = { updated: false, todayGain: null };
+  }
+  if (codes.length === 0) return result;
+
+  const byCode = await Promise.all(
+    codes.map(async (code) => {
+      const { rows: codeRows } = await sql<{
+        snapshot_date: Date | string;
+        realized_gain: string;
+      }>`
+        SELECT snapshot_date, realized_gain
+        FROM daily_returns
+        WHERE code = ${code} AND snapshot_date <= ${today}
+        ORDER BY snapshot_date DESC
+        LIMIT 2
+      `;
+      return { code, rows: codeRows };
+    })
+  );
+
+  for (const { code, rows } of byCode) {
+    if (rows.length === 0) continue;
+    const newest = rows[0];
+    if (toDateString(newest.snapshot_date) !== today) continue;
+    const prior = rows.length > 1 ? rows[1] : null;
+    const delta = prior
+      ? Number(newest.realized_gain) - Number(prior.realized_gain)
+      : Number(newest.realized_gain);
+    result[code] = { updated: true, todayGain: Number(delta.toFixed(2)) };
+  }
+  return result;
+}
+
 export async function getReturnHistory(
   code: string,
   range: '1m' | '3m' | '6m' | '1y' | 'all' = '3m'
