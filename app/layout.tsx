@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: '美股基金行情看板',
-  description: '查看标普500、纳斯达克100及自选基金数据',
+  title: '自选基金看板',
+  description: '查看自选基金净值、估算涨跌幅与历史走势',
 };
 
 export default function RootLayout({
