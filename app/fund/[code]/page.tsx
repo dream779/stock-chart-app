@@ -81,7 +81,7 @@ export default function FundDetailPage({ params }: FundDetailPageProps) {
 
       <div className="max-w-5xl mx-auto px-4 py-4 space-y-4">
         <Link
-          href="/fund"
+          href="/"
           className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
         >
           ← 返回自选列表
