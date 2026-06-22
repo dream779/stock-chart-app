@@ -4,8 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const TABS = [
-  { label: '美股指数', href: '/' },
-  { label: '基金', href: '/fund' },
+  { label: '基金', href: '/' },
   { label: '持仓收益', href: '/holdings' },
 ];
 
