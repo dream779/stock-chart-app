@@ -33,6 +33,9 @@ export default function RegenerateButton() {
       >
         {loading ? '生成中…' : '重跑今日'}
       </button>
+      {loading && (
+        <span className="text-xs text-gray-500">约 20-30 秒，关闭页面也不影响</span>
+      )}
       {error && <span className="text-xs text-red-600">{error}</span>}
     </div>
   );

@@ -1,6 +1,7 @@
 import { runDailySummarize } from '@/lib/summary-job';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export async function POST() {
   try {
