@@ -127,6 +127,7 @@ stock-chart-app/
 | ----------------------------------------- | ---------------------------- | -------------------------------------- |
 | `GET /api/fund/:code`                     | 获取单只基金实时估值与净值   | `/api/fund/017641`                     |
 | `GET /api/fund/historical/:code?range=1y` | 获取基金历史净值走势         | `/api/fund/historical/017641?range=1m` |
+| `POST /api/ai/summarize`                  | 调用 MiniMax M3 生成基金总结 | `/api/ai/summarize`                    |
 
 支持的时间范围：`1w`（1周）、`1m`（1个月）、`3m`（3个月）、`1y`（1年）
 
@@ -144,6 +145,29 @@ stock-chart-app/
 - [ ] 接入 Capacitor 打包成原生 App
 - [ ] 接入邮件/推送提醒
 - [ ] 接入 Massive（原 Polygon.io）等更稳定的数据源
+
+## AI 总结（开发中）
+
+每日基金复盘由 MiniMax `MiniMax-M3` 模型生成，调用方需在服务端配置以下环境变量（参考 `.env.example`）：
+
+```bash
+ANTHROPIC_BASE_URL=https://api.minimaxi.com/anthropic
+ANTHROPIC_API_KEY=<your-minimax-api-key>
+```
+
+调用示例：
+
+```bash
+curl -sS -X POST http://localhost:3000/api/ai/summarize \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "fundCode": "017641",
+    "fundName": "广发中证光伏产业指数A",
+    "context": "今日光伏板块上涨 1.5%，硅料价格小幅回落，海外贸易摩擦有升温迹象。"
+  }' | jq
+```
+
+成功响应会包含 `sections.summary` / `sections.advice` / `sections.table` 与 `usage`。模型输出仅供参考，不构成任何投资建议。
 
 ## 免责声明
 
