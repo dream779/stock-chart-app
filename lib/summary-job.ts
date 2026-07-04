@@ -118,7 +118,13 @@ export async function runDailySummarize(opts?: {
 }): Promise<JobSummary> {
   await ensureSchema();
   const summaryDate = todayBJT();
-  if (!opts?.forceToday && isHoliday(new Date(`${summaryDate}T00:00:00`))) {
+  const todayDate = new Date(`${summaryDate}T00:00:00`);
+  // dayjs(..., 'Asia/Shanghai').day() returns 0 (Sun) ... 6 (Sat) in BJT
+  const bjtDay = dayjs.tz(summaryDate, 'Asia/Shanghai').day();
+  const isWeekend = bjtDay === 0 || bjtDay === 6;
+  // chinese-days.isHoliday() returns true for both weekends and statutory holidays.
+  // Skip only on actual statutory holidays; weekends still generate.
+  if (!opts?.forceToday && !isWeekend && isHoliday(todayDate)) {
     return { processed: 0, succeeded: 0, failed: 0, skipped: 'holiday', results: [] };
   }
   const { rows: holdings } = await sql<Holding>`SELECT code, name FROM holdings`;
