@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ensureSchema, sql } from '@/lib/db';
 import type { Holding } from '@/lib/holdings';
+import { getFundDetail } from '@/lib/fund-detail';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,11 +47,25 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as Partial<Holding>;
-    if (!body.code || !body.name) {
+    if (!body.code) {
       return NextResponse.json(
-        { success: false, error: 'invalid_input', message: 'code and name are required' },
+        { success: false, error: 'invalid_input', message: 'code is required' },
         { status: 400 }
       );
+    }
+    if (!/^\d{6}$/.test(body.code)) {
+      return NextResponse.json(
+        { success: false, error: 'invalid_input', message: 'code 必须为 6 位数字' },
+        { status: 400 }
+      );
+    }
+
+    let name = '';
+    try {
+      const detail = await getFundDetail(body.code);
+      if (detail?.shortName) name = detail.shortName;
+    } catch (err) {
+      console.warn(`[holdings] getFundDetail(${body.code}) failed:`, err);
     }
 
     const now = new Date().toISOString();
@@ -62,7 +77,7 @@ export async function POST(req: Request) {
         code, name, shares, amount, cost_price, pending_amount, created_at, updated_at
       ) VALUES (
         ${body.code},
-        ${body.name},
+        ${name},
         ${body.shares ?? 0},
         0,
         ${body.costPrice ?? 0},
@@ -71,7 +86,6 @@ export async function POST(req: Request) {
         NOW()
       )
       ON CONFLICT (code) DO UPDATE SET
-        name           = EXCLUDED.name,
         shares         = EXCLUDED.shares,
         cost_price     = EXCLUDED.cost_price,
         updated_at     = NOW()
