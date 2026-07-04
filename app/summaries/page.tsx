@@ -1,10 +1,10 @@
+import { unstable_noStore as noStore } from 'next/cache';
 import NavBar from '@/components/NavBar';
 import SummaryCard from '@/components/SummaryCard';
 import RegenerateButton from '@/components/RegenerateButton';
 import { sql, ensureSchema } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 300;
 
 interface FundItem {
   id: number;
@@ -39,6 +39,7 @@ function todayBJTString(): string {
 }
 
 async function loadCards(): Promise<Card[]> {
+  noStore();
   await ensureSchema();
   const { rows } = await sql<Row>`
     SELECT summary_date,

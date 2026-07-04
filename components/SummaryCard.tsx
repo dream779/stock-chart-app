@@ -95,18 +95,16 @@ function FundSection({ fund }: { fund: FundItem }) {
           {expanded ? '收起' : '展开全部'}
         </button>
       )}
-      {expanded && (
-        <div className="mt-3 space-y-2">
-          <div>
-            <h4 className="text-xs font-semibold text-gray-700 mb-1">投资建议</h4>
-            <p className="text-sm text-gray-700 whitespace-pre-wrap">{fund.advice}</p>
-          </div>
-          {fund.tableMd && (
-            <div>
-              <h4 className="text-xs font-semibold text-gray-700 mb-1">关键要点</h4>
-              {renderTableMarkdown(fund.tableMd)}
-            </div>
-          )}
+      {fund.advice && (
+        <div className="mt-3">
+          <h4 className="text-xs font-semibold text-gray-700 mb-1">投资建议</h4>
+          <p className="text-sm text-gray-700 whitespace-pre-wrap">{fund.advice}</p>
+        </div>
+      )}
+      {fund.tableMd && (
+        <div className="mt-3">
+          <h4 className="text-xs font-semibold text-gray-700 mb-1">关键要点</h4>
+          {renderTableMarkdown(fund.tableMd)}
         </div>
       )}
     </div>
