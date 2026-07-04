@@ -87,3 +87,31 @@ export async function GET() {
     );
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const date = searchParams.get('date');
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return Response.json(
+        { success: false, error: 'invalid_input', message: 'date 必须为 YYYY-MM-DD' },
+        { status: 400 }
+      );
+    }
+    await ensureSchema();
+    const result = await sql`DELETE FROM fund_summaries WHERE summary_date = ${date}::date`;
+    return Response.json({
+      success: true,
+      data: { date, deletedCount: result.rowCount ?? 0 },
+    });
+  } catch (err) {
+    return Response.json(
+      {
+        success: false,
+        error: 'db_error',
+        message: err instanceof Error ? err.message : String(err),
+      },
+      { status: 500 }
+    );
+  }
+}
