@@ -4,6 +4,8 @@ import timezone from 'dayjs/plugin/timezone';
 import { isHoliday } from 'chinese-days';
 import { sql, ensureSchema } from './db';
 import { getFundQuote } from './eastmoney';
+import { getFundDetail, type FundDetail } from './fund-detail';
+import { searchFundNews, TavilyUpstreamError, TavilyRateLimitError, type TavilyNewsItem } from './tavily';
 import { summarizeFundContext } from './ai';
 
 dayjs.extend(utc);
@@ -29,6 +31,13 @@ export function todayBJT(): string {
 
 interface Holding { code: string; name: string | null; }
 
+function buildNewsQuery(fundCode: string, fundName: string | undefined, detail: FundDetail | null | undefined): string {
+  const topTheme = detail?.themes?.find((t) => t.name)?.name;
+  if (fundName && topTheme) return `${fundName} ${topTheme} 近期新闻`;
+  if (fundName) return `${fundName} 近期新闻`;
+  return `${fundCode} 基金 近期新闻`;
+}
+
 async function processOne(
   h: Holding,
   summaryDate: string
@@ -36,29 +45,65 @@ async function processOne(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30_000);
   const fundName = h.name ?? '';
+
+  let fundQuote: Awaited<ReturnType<typeof getFundQuote>> | null = null;
+  let fundDetail: FundDetail | null = null;
+  let news: TavilyNewsItem[] | null = null;
+
   try {
-    const quote = await getFundQuote(h.code).catch(() => null);
+    const [q, d] = await Promise.allSettled([
+      getFundQuote(h.code),
+      getFundDetail(h.code),
+    ]);
+    if (q.status === 'fulfilled') fundQuote = q.value;
+    if (d.status === 'fulfilled') fundDetail = d.value;
+    if (d.status === 'rejected') {
+      console.warn(`[summary-job] getFundDetail(${h.code}) failed:`, d.reason);
+    }
+  } catch (err) {
+    console.warn(`[summary-job] quote/detail fetch error for ${h.code}:`, err);
+  }
+
+  try {
+    const query = buildNewsQuery(h.code, fundName || undefined, fundDetail);
+    news = await searchFundNews({ query, days: 7, maxResults: 5, signal: controller.signal });
+  } catch (err) {
+    if (err instanceof TavilyRateLimitError) {
+      console.warn(`[summary-job] Tavily 429 for ${h.code}: ${err.message}`);
+    } else if (err instanceof TavilyUpstreamError) {
+      console.warn(`[summary-job] Tavily error for ${h.code}: ${err.message}`);
+    } else {
+      console.warn(`[summary-job] news fetch error for ${h.code}:`, err);
+    }
+    news = null;
+  }
+
+  try {
     const ai = await summarizeFundContext({
       fundCode: h.code,
       fundName,
-      fundQuote: quote
-        ? { nav: quote.nav, changePercent: quote.changePercent, navDate: quote.navDate }
+      fundQuote: fundQuote
+        ? { nav: fundQuote.nav, changePercent: fundQuote.changePercent, navDate: fundQuote.navDate }
         : null,
+      fundDetail,
+      news,
       enableWebSearch: true,
       signal: controller.signal,
     });
-    const quoteJson = quote ? JSON.stringify(quote) : null;
+    const quoteJson = fundQuote ? JSON.stringify(fundQuote) : null;
     await sql`
       INSERT INTO fund_summaries (
         code, fund_name, summary_date,
         summary, advice, table_md, raw,
         model, input_tokens, output_tokens,
-        status, error_message, fund_quote_json
+        status, error_message, fund_quote_json,
+        news_count, details_loaded, news_json
       ) VALUES (
         ${h.code}, ${fundName}, ${summaryDate},
         ${ai.sections.summary}, ${ai.sections.advice}, ${ai.sections.table ?? null}, ${ai.raw},
         ${ai.model}, ${ai.usage.inputTokens}, ${ai.usage.outputTokens},
-        'success', NULL, ${quoteJson}::jsonb
+        'success', NULL, ${quoteJson}::jsonb,
+        ${ai.newsCount ?? 0}, ${ai.detailsLoaded ?? false}, ${news ? JSON.stringify(news) : null}::jsonb
       )
       ON CONFLICT (code, summary_date) DO UPDATE SET
         summary = EXCLUDED.summary,
@@ -71,6 +116,9 @@ async function processOne(
         status = EXCLUDED.status,
         error_message = EXCLUDED.error_message,
         fund_quote_json = EXCLUDED.fund_quote_json,
+        news_count = EXCLUDED.news_count,
+        details_loaded = EXCLUDED.details_loaded,
+        news_json = EXCLUDED.news_json,
         created_at = NOW()
     `;
     return { code: h.code, status: 'success' };
@@ -81,12 +129,14 @@ async function processOne(
         code, fund_name, summary_date,
         summary, advice, table_md, raw,
         model, input_tokens, output_tokens,
-        status, error_message, fund_quote_json
+        status, error_message, fund_quote_json,
+        news_count, details_loaded, news_json
       ) VALUES (
         ${h.code}, ${fundName}, ${summaryDate},
         '', '', NULL, '',
         'unknown', 0, 0,
-        'failed', ${msg}, NULL
+        'failed', ${msg}, NULL,
+        0, false, NULL
       )
       ON CONFLICT (code, summary_date) DO UPDATE SET
         summary = EXCLUDED.summary,
@@ -99,6 +149,9 @@ async function processOne(
         status = EXCLUDED.status,
         error_message = EXCLUDED.error_message,
         fund_quote_json = EXCLUDED.fund_quote_json,
+        news_count = EXCLUDED.news_count,
+        details_loaded = EXCLUDED.details_loaded,
+        news_json = EXCLUDED.news_json,
         created_at = NOW()
     `;
     return { code: h.code, status: 'failed', error: msg };
