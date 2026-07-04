@@ -128,6 +128,9 @@ stock-chart-app/
 | `GET /api/fund/:code`                     | 获取单只基金实时估值与净值   | `/api/fund/017641`                     |
 | `GET /api/fund/historical/:code?range=1y` | 获取基金历史净值走势         | `/api/fund/historical/017641?range=1m` |
 | `POST /api/ai/summarize`                  | 调用 MiniMax M3 生成基金总结 | `/api/ai/summarize`                    |
+| `GET /api/cron/daily-summarize`           | Vercel Cron 入口（每天 18:00 BJT），需要 `Authorization: Bearer CRON_SECRET` | `/api/cron/daily-summarize`            |
+| `GET /api/summaries`                      | 总结页数据：按天分组的最近 14 天卡片 | `/api/summaries`                       |
+| `POST /api/summaries/regenerate`          | 手动重跑今日所有基金的总结（UPSERT） | `/api/summaries/regenerate`           |
 
 支持的时间范围：`1w`（1周）、`1m`（1个月）、`3m`（3个月）、`1y`（1年）
 
@@ -168,6 +171,30 @@ curl -sS -X POST http://localhost:3000/api/ai/summarize \
 ```
 
 成功响应会包含 `sections.summary` / `sections.advice` / `sections.table` 与 `usage`。模型输出仅供参考，不构成任何投资建议。
+
+### 每日总结页面
+
+每天北京时间 18:00（Vercel Cron `0 10 * * *` UTC）自动给每只持仓基金生成 AI 总结，保存到 `fund_summaries` 表，保留 14 天后清理。
+
+- 入口：`/summaries`
+- 手动重跑：页面右上角「重跑今日」按钮（POST `/api/summaries/regenerate`）
+- 节假日行为：法定节假日跳过；周末照常生成（基于 `chinese-days` + BJT 周末判定）
+- web_search 工具：MiniMax M3 不支持 `web_search_20250305`，AI 仅凭基金代码/名称/估值与通用知识生成
+
+Vercel 部署需配置环境变量：
+
+| 变量 | 必需 | 说明 |
+| --- | --- | --- |
+| `ANTHROPIC_API_KEY` | 是 | MiniMax M3 API Key |
+| `ANTHROPIC_BASE_URL` | 是 | `https://api.minimaxi.com/anthropic` |
+| `CRON_SECRET` | 是 | Vercel Cron 鉴权令牌；在 Vercel 项目设置中配置，Vercel 会自动用它给 cron 触发加 `Authorization: Bearer` 头 |
+
+手动触发 cron（本地开发）：
+
+```bash
+curl -sS -H "Authorization: Bearer $CRON_SECRET" \
+  http://localhost:3000/api/cron/daily-summarize | jq
+```
 
 ## 免责声明
 
