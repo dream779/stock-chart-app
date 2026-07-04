@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 const TABS = [
   { label: '基金', href: '/' },
   { label: '持仓收益', href: '/holdings' },
+  { label: '每日总结', href: '/summaries' },
 ];
 
 export default function NavBar() {
