@@ -178,6 +178,7 @@ curl -sS -X POST http://localhost:3000/api/ai/summarize \
 
 - 入口：`/summaries`
 - 手动重跑：页面右上角「重跑今日」按钮（POST `/api/summaries/regenerate`）
+- 卡片删除：每张卡片头部「删除本日」可物理清除该日所有基金记录（不可恢复，确认后删除）
 - 节假日行为：法定节假日跳过；周末照常生成（基于 `chinese-days` + BJT 周末判定）
 - **数据源**：每只基金先抓取东方财富移动 API（基金基本信息 + 阶段收益 + 经理持仓/主题），再用 Tavily 搜索近 7 天新闻，最后注入 prompt 一起交给 LLM 生成总结。LLM 仅整合，不外推。
 
