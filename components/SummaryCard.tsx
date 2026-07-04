@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface FundItem {
   id: number;
@@ -113,8 +114,34 @@ function FundSection({ fund }: { fund: FundItem }) {
 }
 
 export default function SummaryCard({ card }: { card: Card }) {
+  const router = useRouter();
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const failedCount = card.funds.filter((f) => f.status === 'failed').length;
   const totalTokens = card.funds.reduce((sum, f) => sum + f.inputTokens + f.outputTokens, 0);
+
+  async function handleDelete() {
+    if (!window.confirm(`确认删除 ${card.summaryDate} 的 ${card.fundCount} 条总结？此操作不可恢复`)) {
+      return;
+    }
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/summaries?date=${encodeURIComponent(card.summaryDate)}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || '删除失败');
+      }
+      router.refresh();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   return (
     <div className={`bg-white rounded-lg shadow p-4 ${failedCount > 0 ? 'border border-red-200' : ''}`}>
@@ -129,7 +156,23 @@ export default function SummaryCard({ card }: { card: Card }) {
             {failedCount} 只失败
           </span>
         )}
+        {card.fundCount > 0 && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="ml-auto text-xs text-red-600 hover:text-red-800 disabled:text-gray-400"
+          >
+            {deleting ? '删除中...' : '删除本日'}
+          </button>
+        )}
       </div>
+
+      {deleteError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded p-2 mb-3">
+          {deleteError}
+        </div>
+      )}
 
       {failedCount > 0 && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded p-2 mb-3">
