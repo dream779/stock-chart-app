@@ -125,6 +125,18 @@ export async function ensureSchema(): Promise<void> {
       CREATE INDEX IF NOT EXISTS fund_summaries_date_idx
       ON fund_summaries(summary_date DESC);
     `;
+    await sql`
+      ALTER TABLE fund_summaries
+        ADD COLUMN IF NOT EXISTS news_count int NOT NULL DEFAULT 0;
+    `;
+    await sql`
+      ALTER TABLE fund_summaries
+        ADD COLUMN IF NOT EXISTS details_loaded boolean NOT NULL DEFAULT false;
+    `;
+    await sql`
+      ALTER TABLE fund_summaries
+        ADD COLUMN IF NOT EXISTS news_json jsonb;
+    `;
   })();
   try {
     await schemaReady;
