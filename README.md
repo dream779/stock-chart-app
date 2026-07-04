@@ -179,7 +179,7 @@ curl -sS -X POST http://localhost:3000/api/ai/summarize \
 - 入口：`/summaries`
 - 手动重跑：页面右上角「重跑今日」按钮（POST `/api/summaries/regenerate`）
 - 节假日行为：法定节假日跳过；周末照常生成（基于 `chinese-days` + BJT 周末判定）
-- web_search 工具：MiniMax M3 不支持 `web_search_20250305`，AI 仅凭基金代码/名称/估值与通用知识生成
+- **数据源**：每只基金先抓取东方财富移动 API（基金基本信息 + 阶段收益 + 经理持仓/主题），再用 Tavily 搜索近 7 天新闻，最后注入 prompt 一起交给 LLM 生成总结。LLM 仅整合，不外推。
 
 Vercel 部署需配置环境变量：
 
@@ -188,6 +188,7 @@ Vercel 部署需配置环境变量：
 | `ANTHROPIC_API_KEY` | 是 | MiniMax M3 API Key |
 | `ANTHROPIC_BASE_URL` | 是 | `https://api.minimaxi.com/anthropic` |
 | `CRON_SECRET` | 是 | Vercel Cron 鉴权令牌；在 Vercel 项目设置中配置，Vercel 会自动用它给 cron 触发加 `Authorization: Bearer` 头 |
+| `TAVILY_API_KEY` | 否 | Tavily Search API key（https://tavily.com 免费 1000 req/月）。缺省则 news 区块静默跳过，summary 仍正常生成 |
 
 手动触发 cron（本地开发）：
 
