@@ -1,9 +1,22 @@
+// web_search support: unsupported (probed 2026-07-04)
+// MiniMax M3 rejects web_search_20250305 tool with "function name or parameters is empty (2013)".
+// summarizeFundContext attempts the tool then falls back to a no-tools call.
+
 import Anthropic from '@anthropic-ai/sdk';
+
+export interface SummarizeFundQuote {
+  nav: number;
+  changePercent: number | null;
+  navDate: string;
+}
 
 export interface SummarizeInput {
   fundCode: string;
   fundName?: string;
   context?: string;
+  fundQuote?: SummarizeFundQuote | null;
+  enableWebSearch?: boolean;
+  signal?: AbortSignal;
 }
 
 export interface SummarySection {
@@ -23,6 +36,7 @@ export interface SummarizeOutput {
   raw: string;
   usage: SummarizeUsage;
   model: string;
+  webSearchUsed?: boolean;
 }
 
 export class MissingEnvError extends Error {
@@ -70,7 +84,7 @@ const SYSTEM_PROMPT = `你是一位中文基金市场分析助手，正在为长
 
 ### 输出格式（严格遵守，不要 Markdown 代码块包裹）
 基金信息总结：
-  <200-300 字，叙述式。覆盖：(1) 近期净值表现与波动；(2) 所属板块/行业异动；
+  <800 字以内（软约束），叙述式。覆盖：(1) 近期净值表现与波动；(2) 所属板块/行业异动；
    (3) 关键驱动消息（政策、宏观、行业事件）。禁止堆砌项目符号。>
 
 投资建议：
@@ -91,12 +105,18 @@ function formatDate(d: Date): string {
 }
 
 function buildUserPrompt(input: SummarizeInput): string {
+  const quoteLine = input.fundQuote
+    ? `今日参考估值：单位净值 ${input.fundQuote.nav}（${input.fundQuote.navDate}），盘中估算涨跌幅 ${input.fundQuote.changePercent ?? '未知'}%。`
+    : '';
   return [
     `基金代码：${input.fundCode}`,
     `基金名称：${input.fundName ?? '（未提供）'}`,
     `当前日期：${formatDate(new Date())}`,
+    quoteLine,
     `补充上下文（如有）：${input.context ?? '（无）'}`,
-  ].join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
 
 function renderSystemPrompt(input: SummarizeInput): string {
@@ -159,6 +179,13 @@ function extractText(content: unknown): string {
   return parts.join('');
 }
 
+function isToolUnsupportedError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const anyErr = err as { status?: number; message?: string; error?: { type?: string } };
+  const msg = (anyErr.message ?? '') + ' ' + (anyErr.error?.type ?? '');
+  return /tool|invalid_request|function name|empty/i.test(msg) || anyErr.status === 400;
+}
+
 export async function summarizeFundContext(
   input: SummarizeInput
 ): Promise<SummarizeOutput> {
@@ -167,19 +194,39 @@ export async function summarizeFundContext(
   }
 
   const client = createClient();
+  const enableWebSearch = input.enableWebSearch !== false;
+  const baseArgs = {
+    model: 'MiniMax-M3' as const,
+    max_tokens: 1000,
+    temperature: 1.0,
+    system: renderSystemPrompt(input),
+    messages: [{ role: 'user', content: buildUserPrompt(input) }],
+  };
+
   let response;
+  let webSearchUsed = false;
   try {
-    response = await client.messages.create({
-      model: 'MiniMax-M3',
-      max_tokens: 1000,
-      temperature: 1.0,
-      system: renderSystemPrompt(input),
-      messages: [{ role: 'user', content: buildUserPrompt(input) }],
-    });
+    const argsWithTools = enableWebSearch
+      ? { ...baseArgs, tools: [{ type: 'web_search_20250305', name: 'web_search' } as never] }
+      : baseArgs;
+    response = await client.messages.create(argsWithTools as never);
+    webSearchUsed = enableWebSearch;
   } catch (err) {
-    throw new AiUpstreamError(
-      err instanceof Error ? `MiniMax 调用失败: ${err.message}` : 'MiniMax 调用失败'
-    );
+    if (enableWebSearch && isToolUnsupportedError(err)) {
+      console.warn('[lib/ai] web_search unsupported, retrying without tools:', err instanceof Error ? err.message : err);
+      try {
+        response = await client.messages.create(baseArgs as never);
+        webSearchUsed = false;
+      } catch (err2) {
+        throw new AiUpstreamError(
+          err2 instanceof Error ? `MiniMax 调用失败: ${err2.message}` : 'MiniMax 调用失败'
+        );
+      }
+    } else {
+      throw new AiUpstreamError(
+        err instanceof Error ? `MiniMax 调用失败: ${err.message}` : 'MiniMax 调用失败'
+      );
+    }
   }
 
   const raw = extractText(response.content);
@@ -195,5 +242,6 @@ export async function summarizeFundContext(
     raw,
     usage,
     model: 'MiniMax-M3',
+    webSearchUsed,
   };
 }
