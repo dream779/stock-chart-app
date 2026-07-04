@@ -212,19 +212,22 @@ export default function HoldingForm({
             />
           </div>
 
-          <div>
-            <label htmlFor="holding-name" className="block text-sm font-medium text-gray-700 mb-1">
-              基金名称
-            </label>
-            <input
-              id="holding-name"
-              type="text"
-              value={form.name}
-              onChange={(e) => handleChange('name', e.target.value)}
-              placeholder="提交后会用实时名称覆盖"
-              className={inputClass}
-            />
-          </div>
+          {isEdit && (
+            <div>
+              <label htmlFor="holding-name" className="block text-sm font-medium text-gray-700 mb-1">
+                基金名称
+              </label>
+              <input
+                id="holding-name"
+                type="text"
+                value={form.name}
+                onChange={(e) => handleChange('name', e.target.value)}
+                placeholder="提交时会用实时名称覆盖"
+                disabled
+                className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-gray-100 text-gray-500 cursor-not-allowed"
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
