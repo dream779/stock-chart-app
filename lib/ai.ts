@@ -3,6 +3,8 @@
 // summarizeFundContext attempts the tool then falls back to a no-tools call.
 
 import Anthropic from '@anthropic-ai/sdk';
+import type { FundDetail } from './fund-detail';
+import type { TavilyNewsItem } from './tavily';
 
 export interface SummarizeFundQuote {
   nav: number;
@@ -17,6 +19,8 @@ export interface SummarizeInput {
   fundQuote?: SummarizeFundQuote | null;
   enableWebSearch?: boolean;
   signal?: AbortSignal;
+  fundDetail?: FundDetail | null;
+  news?: TavilyNewsItem[] | null;
 }
 
 export interface SummarySection {
@@ -37,6 +41,8 @@ export interface SummarizeOutput {
   usage: SummarizeUsage;
   model: string;
   webSearchUsed?: boolean;
+  newsCount?: number;
+  detailsLoaded?: boolean;
 }
 
 export class MissingEnvError extends Error {
@@ -74,8 +80,10 @@ const SYSTEM_PROMPT = `你是一位中文基金市场分析助手，正在为长
 仅围绕上述基金复盘；不要替换为同名/相似代码的其他基金，除非用户资料明确冲突。
 
 ### 信息优先级（Source-of-truth Rule）
-1. 已披露净值 > 当日估算净值 > 媒体报道 > 板块/行业一般信息
-2. 用户未提供当日行情/新闻时，可基于基金名称、类型、常见重仓板块做合理推断，
+1. 已披露净值 > 当日估算净值 > 近期新闻摘要 > 阶段收益数据 > 模型自身训练知识
+2. 新闻摘要截至 {date}。若模型自身训练知识超过此日期，请勿假设，仍以新闻摘要为准。
+3. 若「近期新闻」区块缺失或为空，请在「新闻时效」字段标注『无近期新闻』，不要编造。
+4. 用户未提供当日行情/新闻时，可基于基金名称、类型、常见重仓板块做合理推断，
    但需在表格「数据可靠性」行标注 高/中/低
 
 ### 倾向决断（Decisive-rating Clause）
@@ -97,11 +105,65 @@ const SYSTEM_PROMPT = `你是一位中文基金市场分析助手，正在为长
 | 净值表现 | ... |
 | 板块/行业 | ... |
 | 主要驱动 | ... |
+| 新闻时效 | 高/中/低（若新闻缺失则为『无近期新闻』） |
 | 数据可靠性 | 高/中/低 |
 `;
 
 function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
+}
+
+function formatFundDetailBlock(d: FundDetail | null | undefined): string {
+  if (!d) return '';
+  const lines: string[] = ['【基础信息】'];
+  if (d.shortName) lines.push(`  基金名称：${d.shortName}`);
+  if (d.fundType) lines.push(`  基金类型：${d.fundType}`);
+  if (d.scale) lines.push(`  资产规模：${d.scale.toFixed(2)} 亿元${d.scaleDate ? `（截至 ${d.scaleDate}）` : ''}`);
+  if (d.manager) lines.push(`  基金经理：${d.manager}`);
+  if (d.inceptionDate) lines.push(`  成立日期：${d.inceptionDate}`);
+  if (d.bench) lines.push(`  业绩基准：${d.bench}`);
+  if (d.invTarget) lines.push(`  投资目标：${d.invTarget}`);
+
+  if (d.periodReturns.length > 0) {
+    lines.push('', `【阶段收益（截至 ${formatDate(new Date())}）】`);
+    lines.push('  区间         收益%     同类平均%    沪深300%    排行/总数');
+    for (const p of d.periodReturns) {
+      const y = (p.yield >= 0 ? '+' : '') + p.yield.toFixed(2);
+      const avg = p.categoryAvg ? p.categoryAvg.toFixed(2) : '--';
+      const hs = p.hs300 != null ? (p.hs300 >= 0 ? '+' : '') + p.hs300.toFixed(2) : '--';
+      const rank = p.rank != null && p.total != null ? `${p.rank}/${p.total}` : '--';
+      lines.push(`  ${p.range.padEnd(8, '　')}  ${y.padStart(7)}   ${avg.padStart(8)}    ${hs.padStart(7)}    ${rank}`);
+    }
+  }
+
+  if (d.holdings.length > 0) {
+    lines.push('', '【持仓特征】', `  前 ${d.holdings.length} 重仓股票（名称 / 主题 / 权重%）：`);
+    d.holdings.forEach((h, i) => {
+      lines.push(`    ${i + 1}. ${h.name} / ${h.theme || '未知'} / ${h.ratio.toFixed(2)}%`);
+    });
+  }
+
+  if (d.themes.length > 0) {
+    lines.push(`  主题配置（经理占比 / 同类平均%）：`);
+    d.themes.forEach((t, i) => {
+      lines.push(`    ${i + 1}. ${t.name}  ${t.managerRatio.toFixed(2)}% / ${t.categoryAvg.toFixed(2)}%`);
+    });
+  }
+
+  return lines.join('\n');
+}
+
+function formatNewsBlock(news: TavilyNewsItem[] | null | undefined): string {
+  if (!news || news.length === 0) return '';
+  const today = formatDate(new Date());
+  const lines: string[] = [`【近期新闻（来自 Tavily，时间范围 7 天，截至 ${today}）】`];
+  news.forEach((n, i) => {
+    const dateStr = n.date ? `[${n.date}] ` : '';
+    lines.push(`  ${i + 1}. ${dateStr}${n.title}`);
+    lines.push(`     摘要：${n.content.slice(0, 200)}`);
+  });
+  lines.push(`  （共 ${news.length} 条；信息具有时效性，请勿外推）`);
+  return lines.join('\n');
 }
 
 function buildUserPrompt(input: SummarizeInput): string {
@@ -113,6 +175,8 @@ function buildUserPrompt(input: SummarizeInput): string {
     `基金名称：${input.fundName ?? '（未提供）'}`,
     `当前日期：${formatDate(new Date())}`,
     quoteLine,
+    formatFundDetailBlock(input.fundDetail),
+    formatNewsBlock(input.news),
     `补充上下文（如有）：${input.context ?? '（无）'}`,
   ]
     .filter(Boolean)
@@ -243,5 +307,7 @@ export async function summarizeFundContext(
     usage,
     model: 'MiniMax-M3',
     webSearchUsed,
+    newsCount: input.news?.length ?? 0,
+    detailsLoaded: input.fundDetail != null,
   };
 }
