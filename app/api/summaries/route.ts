@@ -25,7 +25,7 @@ interface Card {
 }
 
 interface Row {
-  summary_date: string;
+  summary_date: string | Date;
   fund_count: string;
   funds: FundSummaryItem[];
 }
