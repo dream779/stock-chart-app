@@ -26,6 +26,8 @@ pnpm-debug.log*
 # local env files
 .env*.local
 .env
+# keep example templates tracked even though .env* matches above
+!.env.example
 
 # vercel
 .vercel
@@ -40,5 +42,4 @@ next-env.d.ts
 docs/
 .claude/
 .superpowers/
-.env*
 AGENTS.md
