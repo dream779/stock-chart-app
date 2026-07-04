@@ -101,6 +101,30 @@ export async function ensureSchema(): Promise<void> {
       CREATE INDEX IF NOT EXISTS daily_returns_code_date_idx
       ON daily_returns(code, snapshot_date DESC);
     `;
+    await sql`
+      CREATE TABLE IF NOT EXISTS fund_summaries (
+        id              BIGSERIAL PRIMARY KEY,
+        code            TEXT NOT NULL,
+        fund_name       TEXT NOT NULL,
+        summary_date    DATE NOT NULL,
+        created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        summary         TEXT NOT NULL,
+        advice          TEXT NOT NULL,
+        table_md        TEXT,
+        raw             TEXT NOT NULL,
+        model           TEXT NOT NULL,
+        input_tokens    INTEGER NOT NULL,
+        output_tokens   INTEGER NOT NULL,
+        status          TEXT NOT NULL CHECK (status IN ('success','failed')),
+        error_message   TEXT,
+        fund_quote_json JSONB,
+        UNIQUE (code, summary_date)
+      );
+    `;
+    await sql`
+      CREATE INDEX IF NOT EXISTS fund_summaries_date_idx
+      ON fund_summaries(summary_date DESC);
+    `;
   })();
   try {
     await schemaReady;
