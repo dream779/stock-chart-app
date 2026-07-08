@@ -129,7 +129,6 @@ stock-chart-app/
 | `GET /api/fund/:code`                     | 获取单只基金实时估值与净值   | `/api/fund/017641`                     |
 | `GET /api/fund/historical/:code?range=1y` | 获取基金历史净值走势         | `/api/fund/historical/017641?range=1m` |
 | `POST /api/ai/summarize`                  | 调用 MiniMax M3 生成基金总结 | `/api/ai/summarize`                    |
-| `GET /api/cron/daily-summarize`           | Vercel Cron 入口（每天 18:00 BJT），需要 `Authorization: Bearer CRON_SECRET` | `/api/cron/daily-summarize`            |
 | `GET /api/summaries`                      | 总结页数据：按天分组的最近 14 天卡片 | `/api/summaries`                       |
 | `POST /api/summaries/regenerate`          | 手动重跑今日所有基金的总结（UPSERT） | `/api/summaries/regenerate`           |
 
@@ -175,10 +174,10 @@ curl -sS -X POST http://localhost:3000/api/ai/summarize \
 
 ### 每日总结页面
 
-每天北京时间 18:00（Vercel Cron `0 10 * * *` UTC）自动给每只持仓基金生成 AI 总结，保存到 `fund_summaries` 表，保留 14 天后清理。
+定时调度当前已暂停，不会自动生成。需要在 `/summaries` 页面手动点击右上角「重跑今日」按钮（POST `/api/summaries/regenerate`）才会给每只持仓基金生成 AI 总结，保存到 `fund_summaries` 表，保留 14 天后清理。
 
 - 入口：`/summaries`
-- 手动重跑：页面右上角「重跑今日」按钮（POST `/api/summaries/regenerate`）
+- 手动重跑：页面右上角「重跑今日」按钮（POST `/api/summaries/regenerate`），会跳过节假日跳过逻辑并强制覆盖当日记录
 - 卡片删除：每张卡片头部「删除本日」可物理清除该日所有基金记录（不可恢复，确认后删除）
 - 节假日行为：法定节假日跳过；周末照常生成（基于 `chinese-days` + BJT 周末判定）
 - **数据源**：每只基金先抓取东方财富移动 API（基金基本信息 + 阶段收益 + 经理持仓/主题），再用 Tavily 搜索近 7 天新闻，最后注入 prompt 一起交给 LLM 生成总结。LLM 仅整合，不外推。
@@ -189,15 +188,7 @@ Vercel 部署需配置环境变量：
 | --- | --- | --- |
 | `ANTHROPIC_API_KEY` | 是 | MiniMax M3 API Key |
 | `ANTHROPIC_BASE_URL` | 是 | `https://api.minimaxi.com/anthropic` |
-| `CRON_SECRET` | 是 | Vercel Cron 鉴权令牌；在 Vercel 项目设置中配置，Vercel 会自动用它给 cron 触发加 `Authorization: Bearer` 头 |
 | `TAVILY_API_KEY` | 否 | Tavily Search API key（https://tavily.com 免费 1000 req/月）。缺省则 news 区块静默跳过，summary 仍正常生成 |
-
-手动触发 cron（本地开发）：
-
-```bash
-curl -sS -H "Authorization: Bearer $CRON_SECRET" \
-  http://localhost:3000/api/cron/daily-summarize | jq
-```
 
 ## 免责声明
 

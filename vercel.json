@@ -2,8 +2,5 @@
   "framework": "nextjs",
   "buildCommand": "next build",
   "devCommand": "next dev",
-  "installCommand": "pnpm install",
-  "crons": [
-    { "path": "/api/cron/daily-summarize", "schedule": "0 10 * * *" }
-  ]
+  "installCommand": "pnpm install"
 }
