@@ -193,7 +193,7 @@ export default function FundTable() {
 
   return (
     <DragDropProvider onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="space-y-4">
+      <div className="space-y-5">
         <div className="flex flex-col sm:flex-row gap-2">
           <input
             type="text"
@@ -203,27 +203,27 @@ export default function FundTable() {
             value={input}
             onChange={(e) => setInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
             onKeyDown={handleKeyDown}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+            className="flex-1 rounded-xl border border-slate-200 bg-slate-100/80 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10"
           />
           <button
             onClick={handleAdd}
             disabled={input.trim().length !== 6}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
+            className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
           >
             加入自选
           </button>
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm text-rose-700">
             {error}
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgb(15_23_42_/_0.03)]">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-gray-50 text-gray-600 font-medium">
+            <table className="w-full text-left text-sm text-slate-700">
+              <thead className="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="w-8"></th>
                   <th className="px-4 py-3">基金名称</th>
@@ -234,21 +234,21 @@ export default function FundTable() {
                   <th className="px-4 py-3 text-right">操作</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-slate-100">
                 {loadingCodes && rows.length === 0 ? (
                   Array.from({ length: 2 }).map((_, i) => (
                     <tr key={`init-${i}`}>
                       <td className="w-8"></td>
                       {Array.from({ length: 6 }).map((_, j) => (
                         <td key={j} className="px-4 py-3">
-                          <div className="h-4 bg-gray-100 rounded animate-pulse" />
+                          <div className="h-4 animate-pulse rounded bg-slate-100" />
                         </td>
                       ))}
                     </tr>
                   ))
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-500">
                       暂无自选基金，请输入基金代码添加
                     </td>
                   </tr>
@@ -299,34 +299,28 @@ function SortableRow({
   });
 
   const rowClass =
-    'hover:bg-gray-50 transition-colors ' +
-    (isDragging
-      ? 'bg-white shadow-lg ring-1 ring-blue-200 [&_td]:!cursor-grabbing '
-      : '');
+    'transition-colors hover:bg-slate-50/80 ' +
+    (isDragging ? 'bg-white shadow-lg ring-1 ring-indigo-200 [&_td]:!cursor-grabbing ' : '');
 
   return (
-    <tr
-      ref={setElement}
-      style={isDragging ? { opacity: 1 } : undefined}
-      className={rowClass}
-    >
+    <tr ref={setElement} style={isDragging ? { opacity: 1 } : undefined} className={rowClass}>
       <td
         ref={handleRef}
         onClick={(e) => e.stopPropagation()}
-        className="px-2 py-3 text-gray-300 cursor-grab active:cursor-grabbing select-none touch-none"
+        className="select-none touch-none px-2 py-3 text-slate-300 cursor-grab active:cursor-grabbing"
         title="拖动排序"
       >
         <GripIcon />
       </td>
       {row.status === 'loading' && (
         <>
-          <td className="px-4 py-3 text-gray-400 font-mono text-xs">{row.code}</td>
+          <td className="px-4 py-3.5 font-mono text-xs tabular-nums text-slate-400">{row.code}</td>
           {Array.from({ length: 4 }).map((_, j) => (
             <td key={j} className="px-4 py-3">
-              <div className="h-4 bg-gray-100 rounded animate-pulse" />
+              <div className="h-4 animate-pulse rounded bg-slate-100" />
             </td>
           ))}
-          <td className="px-4 py-3 text-right text-gray-300">—</td>
+          <td className="px-4 py-3.5 text-right text-slate-300">—</td>
         </>
       )}
       {row.status === 'error' && (
@@ -334,10 +328,10 @@ function SortableRow({
           <td
             colSpan={5}
             onClick={onNavigate}
-            className="px-4 py-3 font-medium text-gray-900 max-w-[200px] truncate cursor-pointer"
+            className="max-w-[200px] cursor-pointer truncate px-4 py-3.5 font-medium text-slate-900"
           >
             {row.code}
-            <span className="ml-2 text-xs text-red-500">
+            <span className="ml-2 text-xs text-rose-500">
               (获取失败{row.error ? `: ${row.error}` : ''})
             </span>
           </td>
@@ -347,7 +341,7 @@ function SortableRow({
                 e.stopPropagation();
                 onRemove();
               }}
-              className="text-gray-400 hover:text-red-600 transition cursor-pointer"
+              className="cursor-pointer text-slate-300 transition-colors hover:text-rose-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
               title="删除"
             >
               ×
@@ -372,25 +366,28 @@ function LoadedRowCells({
   onRemove: () => void;
 }) {
   const isPositive = row.changePercent !== null ? row.changePercent >= 0 : true;
-  const colorClass = isPositive ? 'text-red-600' : 'text-green-600';
+  const colorClass = isPositive ? 'text-rose-600' : 'text-emerald-600';
   return (
     <>
       <td
         onClick={onNavigate}
-        className="px-4 py-3 font-medium text-gray-900 max-w-[200px] truncate cursor-pointer"
+        className="max-w-[200px] cursor-pointer truncate px-4 py-3.5 font-medium text-slate-900"
       >
         {row.name || row.code}
       </td>
       <td
         onClick={onNavigate}
-        className="px-4 py-3 text-gray-500 cursor-pointer"
+        className="cursor-pointer px-4 py-3.5 font-mono tabular-nums text-slate-500"
       >
         {row.code}
       </td>
-      <td onClick={onNavigate} className="px-4 py-3 cursor-pointer">
+      <td onClick={onNavigate} className="cursor-pointer px-4 py-3.5 font-mono tabular-nums">
         {row.nav > 0 ? row.nav.toFixed(4) : '--'}
       </td>
-      <td onClick={onNavigate} className={`px-4 py-3 font-medium cursor-pointer ${colorClass}`}>
+      <td
+        onClick={onNavigate}
+        className={`cursor-pointer px-4 py-3.5 font-mono font-medium tabular-nums ${colorClass}`}
+      >
         {row.changePercent !== null ? (
           <>
             {isPositive ? '+' : ''}
@@ -400,10 +397,7 @@ function LoadedRowCells({
           '--'
         )}
       </td>
-      <td
-        onClick={onNavigate}
-        className="px-4 py-3 text-gray-500 text-xs cursor-pointer"
-      >
+      <td onClick={onNavigate} className="cursor-pointer px-4 py-3.5 text-xs text-slate-500">
         {row.estimateTime || formatTime(row.lastUpdated)}
       </td>
       <td className="px-4 py-3 text-right">
@@ -412,7 +406,7 @@ function LoadedRowCells({
             e.stopPropagation();
             onRemove();
           }}
-          className="text-gray-400 hover:text-red-600 transition cursor-pointer"
+          className="cursor-pointer text-slate-300 transition-colors hover:text-rose-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
           title="删除"
         >
           ×

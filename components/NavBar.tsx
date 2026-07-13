@@ -13,21 +13,26 @@ export default function NavBar() {
   const pathname = usePathname();
 
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-100">
-      <div className="max-w-5xl mx-auto px-4">
-        <div className="flex items-center gap-6 h-14">
-          <span className="font-bold text-gray-900">行情看板</span>
-          <div className="flex items-center gap-1">
+    <nav className="border-b border-slate-200/80 bg-white/80 backdrop-blur">
+      <div className="mx-auto max-w-5xl px-4">
+        <div className="flex h-16 items-center gap-4 sm:gap-7">
+          <span className="flex items-center gap-2 text-sm font-semibold tracking-tight text-slate-950">
+            <span className="grid h-6 w-6 place-items-center rounded-md bg-slate-950 text-[10px] font-bold text-white">
+              Q
+            </span>
+            行情看板
+          </span>
+          <div className="flex items-center gap-1 overflow-x-auto">
             {TABS.map((tab) => {
               const isActive = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
               return (
                 <Link
                   key={tab.href}
                   href={tab.href}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${
+                  className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${
                     isActive
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-indigo-50 text-indigo-700'
+                      : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
                   }`}
                 >
                   {tab.label}
