@@ -12,7 +12,8 @@
       "Bash(curl -s \"http://localhost:3000/api/dca/returns?code=017641&range=1m\")",
       "Bash(curl -s -X DELETE \"http://localhost:3000/api/dca?code=017641\")",
       "Bash(curl -s -X POST http://localhost:3000/api/dca -H 'Content-Type: application/json' -d '{ *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(git *)"
     ]
   }
 }
