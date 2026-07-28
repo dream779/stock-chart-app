@@ -40,6 +40,19 @@ function formatTime(iso?: string | null): string {
   });
 }
 
+function formatDataTime(value?: string | null): string {
+  if (!value) return '--';
+  const dateTimeMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  if (dateTimeMatch) {
+    return `${dateTimeMatch[2]}-${dateTimeMatch[3]} ${dateTimeMatch[4]}:${dateTimeMatch[5]}`;
+  }
+  const dateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateMatch) {
+    return `${dateMatch[2]}-${dateMatch[3]}`;
+  }
+  return formatTime(value);
+}
+
 export default function FundTable() {
   const router = useRouter();
   const [rows, setRows] = useState<Row[]>([]);
@@ -228,8 +241,8 @@ export default function FundTable() {
                   <th className="w-8"></th>
                   <th className="px-4 py-3">基金名称</th>
                   <th className="px-4 py-3">代码</th>
-                  <th className="px-4 py-3">单位净值</th>
-                  <th className="px-4 py-3">估算涨跌幅</th>
+                  <th className="px-4 py-3">当前净值</th>
+                  <th className="px-4 py-3">涨跌幅</th>
                   <th className="px-4 py-3">更新时间</th>
                   <th className="px-4 py-3 text-right">操作</th>
                 </tr>
@@ -365,8 +378,16 @@ function LoadedRowCells({
   onNavigate: () => void;
   onRemove: () => void;
 }) {
-  const isPositive = row.changePercent !== null ? row.changePercent >= 0 : true;
-  const colorClass = isPositive ? 'text-rose-600' : 'text-emerald-600';
+  const hasEstimate = row.estimatedNav !== null && Boolean(row.estimateTime);
+  const currentNav = hasEstimate ? row.estimatedNav : row.nav;
+  const isPositive = row.changePercent !== null && row.changePercent >= 0;
+  const colorClass =
+    row.changePercent === null
+      ? 'text-slate-400'
+      : isPositive
+        ? 'text-rose-600'
+        : 'text-emerald-600';
+  const updateTime = hasEstimate ? row.estimateTime : row.navDate;
   return (
     <>
       <td
@@ -382,7 +403,10 @@ function LoadedRowCells({
         {row.code}
       </td>
       <td onClick={onNavigate} className="cursor-pointer px-4 py-3.5 font-mono tabular-nums">
-        {row.nav > 0 ? row.nav.toFixed(4) : '--'}
+        <div>{currentNav !== null && currentNav > 0 ? currentNav.toFixed(4) : '--'}</div>
+        <div className="mt-0.5 font-sans text-[10px] text-slate-400">
+          {hasEstimate ? '盘中估值' : '最新净值'}
+        </div>
       </td>
       <td
         onClick={onNavigate}
@@ -396,9 +420,15 @@ function LoadedRowCells({
         ) : (
           '--'
         )}
+        <div className="mt-0.5 font-sans text-[10px] font-normal text-slate-400">
+          {hasEstimate ? '估算' : '已确认'}
+        </div>
       </td>
       <td onClick={onNavigate} className="cursor-pointer px-4 py-3.5 text-xs text-slate-500">
-        {row.estimateTime || formatTime(row.lastUpdated)}
+        <div>{formatDataTime(updateTime)}</div>
+        <div className="mt-0.5 text-[10px] text-slate-400">
+          {hasEstimate ? '估值更新' : '净值日期'}
+        </div>
       </td>
       <td className="px-4 py-3 text-right">
         <button

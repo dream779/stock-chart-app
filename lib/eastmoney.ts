@@ -2,8 +2,8 @@ import { getCache, setCache } from './cache';
 
 const USE_MOCK = process.env.USE_MOCK_DATA === 'true';
 
-const QUOTE_TTL = 2 * 60 * 1000;
 const HISTORICAL_TTL = 60 * 60 * 1000;
+const REQUEST_TIMEOUT_MS = 10_000;
 
 export interface FundQuoteData {
   code: string;
@@ -21,23 +21,59 @@ export interface FundHistoricalPoint {
   value: number;
 }
 
-interface EastMoneyQuotePayload {
-  fundcode?: string;
-  name?: string;
-  dwjz?: string;
-  gsz?: string;
-  gszzl?: string;
-  jzrq?: string;
-  gztime?: string;
-}
-
 interface EastMoneyHistoryItem {
   x: number;
   y: number | null;
 }
 
+interface SinaEstimatePoint {
+  symbol?: string;
+  min_time?: string | null;
+  pre_date?: string | null;
+  pre_nav?: string | number | null;
+  growthrate?: string | number | null;
+  pre_nav2?: string | number | null;
+  growthrate2?: string | number | null;
+}
+
+interface SinaEstimateResponse {
+  result?: {
+    status?: {
+      code?: number;
+    };
+    data?: {
+      networth?: SinaEstimatePoint[];
+    };
+  };
+}
+
+interface SinaEstimate {
+  estimatedNav: number;
+  changePercent: number;
+  date: string;
+  time: string;
+}
+
+interface LatestConfirmedFundData {
+  name: string;
+  date: string;
+  nav: number;
+  changePercent: number | null;
+}
+
 function formatDate(date: Date): string {
-  return date.toISOString().split('T')[0];
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function formatShanghaiDate(date: Date = new Date()): string {
+  return formatDate(date);
 }
 
 function getPeriodStart(range: string): Date {
@@ -121,33 +157,6 @@ export function generateMockFundHistory(code: string, range: string): FundHistor
   return points;
 }
 
-export function parseFundQuoteResponse(text: string): FundQuoteData {
-  const start = text.indexOf('jsonpgz(');
-  if (start === -1) {
-    throw new Error('无法解析基金估值响应：缺少 jsonpgz 回调');
-  }
-
-  const jsonText = text.slice(start + 8).replace(/\);\s*$/, '');
-
-  let raw: EastMoneyQuotePayload;
-  try {
-    raw = JSON.parse(jsonText) as EastMoneyQuotePayload;
-  } catch {
-    throw new Error('无法解析基金估值响应：JSON 解析失败');
-  }
-
-  return {
-    code: raw.fundcode || '',
-    name: raw.name || '',
-    nav: toNumber(raw.dwjz) ?? 0,
-    estimatedNav: toNumber(raw.gsz),
-    changePercent: toNumber(raw.gszzl),
-    navDate: raw.jzrq || '',
-    estimateTime: raw.gztime || null,
-    lastUpdated: new Date().toISOString(),
-  };
-}
-
 export function parseFundHistoryResponse(text: string, range: string): FundHistoricalPoint[] {
   const start = text.indexOf('Data_netWorthTrend = ');
   if (start === -1) {
@@ -181,22 +190,17 @@ export interface LatestConfirmedNav {
   nav: number;
 }
 
-export async function getLatestConfirmedNav(code: string): Promise<LatestConfirmedNav | null> {
-  const normalizedCode = code.trim();
-  validateFundCode(normalizedCode);
-
-  if (USE_MOCK) {
-    return { date: formatDate(new Date()), nav: 1.0 };
+function parseFundName(text: string): string {
+  const match = text.match(/(?:var\s+)?fS_name\s*=\s*("(?:\\.|[^"\\])*")\s*;/);
+  if (!match) return '';
+  try {
+    return JSON.parse(match[1]) as string;
+  } catch {
+    return '';
   }
+}
 
-  const url = `http://fund.eastmoney.com/pingzhongdata/${normalizedCode}.js?v=${Date.now()}`;
-  const res = await fetch(url, {
-    headers: { Referer: 'http://fund.eastmoney.com/' },
-  });
-
-  if (!res.ok) return null;
-
-  const text = await res.text();
+function parseLatestConfirmedFundData(text: string): LatestConfirmedFundData | null {
   const start = text.indexOf('Data_netWorthTrend = ');
   if (start === -1) return null;
 
@@ -208,58 +212,166 @@ export async function getLatestConfirmedNav(code: string): Promise<LatestConfirm
     return null;
   }
 
-  for (let i = raw.length - 1; i >= 0; i--) {
-    const item = raw[i];
-    if (item.y !== null && item.y !== undefined) {
-      return {
-        date: formatDate(new Date(item.x)),
-        nav: Number(item.y),
-      };
-    }
+  const valid = raw.filter(
+    (item): item is EastMoneyHistoryItem & { y: number } =>
+      item.y !== null && item.y !== undefined && Number.isFinite(Number(item.y))
+  );
+  if (valid.length === 0) return null;
+
+  const latest = valid[valid.length - 1];
+  const previous = valid.length > 1 ? valid[valid.length - 2] : null;
+  const nav = Number(latest.y);
+  const previousNav = previous ? Number(previous.y) : null;
+  const changePercent =
+    previousNav !== null && previousNav > 0 ? ((nav - previousNav) / previousNav) * 100 : null;
+
+  return {
+    name: parseFundName(text),
+    date: formatDate(new Date(latest.x)),
+    nav,
+    changePercent,
+  };
+}
+
+async function getLatestConfirmedFundData(code: string): Promise<LatestConfirmedFundData | null> {
+  const normalizedCode = code.trim();
+  validateFundCode(normalizedCode);
+
+  if (USE_MOCK) {
+    return {
+      name: getMockFundInfo(normalizedCode).name,
+      date: formatDate(new Date()),
+      nav: 1.0,
+      changePercent: null,
+    };
   }
+
+  const url = `https://fund.eastmoney.com/pingzhongdata/${normalizedCode}.js?v=${Date.now()}`;
+  const res = await fetch(url, {
+    cache: 'no-store',
+    headers: { Referer: 'https://fund.eastmoney.com/' },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+
+  if (!res.ok) return null;
+
+  const text = await res.text();
+  return parseLatestConfirmedFundData(text);
+}
+
+export async function getLatestConfirmedNav(code: string): Promise<LatestConfirmedNav | null> {
+  const data = await getLatestConfirmedFundData(code);
+  return data ? { date: data.date, nav: data.nav } : null;
+}
+
+export function parseSinaEstimateResponse(text: string, expectedCode: string): SinaEstimate | null {
+  const openParen = text.indexOf('(');
+  const closeParen = text.lastIndexOf(')');
+  if (openParen === -1 || closeParen <= openParen) return null;
+
+  let raw: SinaEstimateResponse;
+  try {
+    raw = JSON.parse(text.slice(openParen + 1, closeParen)) as SinaEstimateResponse;
+  } catch {
+    return null;
+  }
+
+  if (raw.result?.status?.code !== 0) return null;
+  const points = raw.result.data?.networth;
+  if (!Array.isArray(points)) return null;
+
+  for (let i = points.length - 1; i >= 0; i--) {
+    const point = points[i];
+    if (point.symbol && point.symbol !== expectedCode) continue;
+    if (!point.pre_date || !point.min_time) continue;
+
+    const primaryNav = toNumber(point.pre_nav);
+    const primaryGrowth = toNumber(point.growthrate);
+    const secondaryNav = toNumber(point.pre_nav2);
+    const secondaryGrowth = toNumber(point.growthrate2);
+    const estimatedNav = primaryNav ?? secondaryNav;
+    const growthRate = primaryGrowth ?? secondaryGrowth;
+
+    if (estimatedNav === null || estimatedNav <= 0 || growthRate === null) continue;
+
+    return {
+      estimatedNav,
+      changePercent: growthRate * 100,
+      date: point.pre_date,
+      time: `${point.pre_date} ${point.min_time}`,
+    };
+  }
+
   return null;
+}
+
+async function getSinaFundEstimate(code: string): Promise<SinaEstimate | null> {
+  const callback = `jsonp_fund_${code}_${Date.now()}`;
+  const url =
+    'https://stock.finance.sina.com.cn/fundInfo/api/openapi.php/' +
+    `FdFundService.getEstimateNetworthPic?symbol=${encodeURIComponent(code)}` +
+    `&callback=${callback}&_=${Date.now()}`;
+  const res = await fetch(url, {
+    cache: 'no-store',
+    headers: {
+      Referer: 'https://finance.sina.com.cn/',
+      'User-Agent': 'Mozilla/5.0',
+    },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+
+  if (!res.ok) {
+    throw new Error(`新浪基金估值接口请求失败: ${res.status}`);
+  }
+
+  return parseSinaEstimateResponse(await res.text(), code);
 }
 
 export async function getFundQuote(code: string): Promise<FundQuoteData> {
   const normalizedCode = code.trim();
   validateFundCode(normalizedCode);
 
-  const cacheKey = `fund:quote:${normalizedCode}`;
-  const cached = getCache<FundQuoteData>(cacheKey);
-  if (cached) return cached;
-
   if (USE_MOCK) {
-    const data = mockFundQuote(normalizedCode);
-    setCache(cacheKey, data, QUOTE_TTL);
-    return data;
+    return mockFundQuote(normalizedCode);
   }
 
-  // Fetch gz (name + intraday estimate) and pingzhongdata (latest confirmed
-  // NAV) in parallel — gz's `dwjz` lags ~1 day behind the official NAV, so we
-  // override it with pingzhongdata's latest non-null entry after both return.
-  const [gzResult, confirmed] = await Promise.allSettled([
-    fetch(`http://fundgz.1234567.com.cn/js/${normalizedCode}.js?rt=${Date.now()}`, {
-      headers: { Referer: 'http://fund.eastmoney.com/' },
-    }).then(async (res) => {
-      if (!res.ok) throw new Error(`天天基金接口请求失败: ${res.status}`);
-      return res.text();
-    }),
-    getLatestConfirmedNav(normalizedCode),
+  const [estimateResult, confirmedResult] = await Promise.allSettled([
+    getSinaFundEstimate(normalizedCode),
+    getLatestConfirmedFundData(normalizedCode),
   ]);
 
-  if (gzResult.status === 'rejected') {
-    throw new Error(gzResult.reason instanceof Error ? gzResult.reason.message : String(gzResult.reason));
+  const confirmed = confirmedResult.status === 'fulfilled' ? confirmedResult.value : null;
+  const candidateEstimate = estimateResult.status === 'fulfilled' ? estimateResult.value : null;
+  const estimate = candidateEstimate?.date === formatShanghaiDate() ? candidateEstimate : null;
+
+  if (!confirmed && !estimate) {
+    const estimateError =
+      estimateResult.status === 'rejected'
+        ? estimateResult.reason instanceof Error
+          ? estimateResult.reason.message
+          : String(estimateResult.reason)
+        : '';
+    const confirmedError =
+      confirmedResult.status === 'rejected'
+        ? confirmedResult.reason instanceof Error
+          ? confirmedResult.reason.message
+          : String(confirmedResult.reason)
+        : '';
+    throw new Error(
+      [estimateError, confirmedError].filter(Boolean).join('；') || '基金估值和最新净值均不可用'
+    );
   }
 
-  const data = parseFundQuoteResponse(gzResult.value);
-
-  if (confirmed.status === 'fulfilled' && confirmed.value) {
-    data.nav = confirmed.value.nav;
-    data.navDate = confirmed.value.date;
-  }
-
-  setCache(cacheKey, data, QUOTE_TTL);
-  return data;
+  return {
+    code: normalizedCode,
+    name: confirmed?.name || normalizedCode,
+    nav: confirmed?.nav ?? estimate?.estimatedNav ?? 0,
+    estimatedNav: estimate?.estimatedNav ?? null,
+    changePercent: estimate?.changePercent ?? confirmed?.changePercent ?? null,
+    navDate: confirmed?.date ?? estimate?.date ?? '',
+    estimateTime: estimate?.time ?? null,
+    lastUpdated: new Date().toISOString(),
+  };
 }
 
 export async function getFundHistory(
@@ -281,11 +393,12 @@ export async function getFundHistory(
   }
 
   // East Money-provided endpoint, called server-side only.
-  const url = `http://fund.eastmoney.com/pingzhongdata/${normalizedCode}.js?v=${Date.now()}`;
+  const url = `https://fund.eastmoney.com/pingzhongdata/${normalizedCode}.js?v=${Date.now()}`;
   const res = await fetch(url, {
     headers: {
-      Referer: 'http://fund.eastmoney.com/',
+      Referer: 'https://fund.eastmoney.com/',
     },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 
   if (!res.ok) {
